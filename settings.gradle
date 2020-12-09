@@ -1,0 +1,3 @@
+include ':decodelib'
+include ':app'
+rootProject.name = "MicroLivePlayer"
