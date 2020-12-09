@@ -1,15 +1,62 @@
 package come.live.microliveplayer;
 
-import androidx.appcompat.app.AppCompatActivity;
-
+import android.os.Build;
 import android.os.Bundle;
-import come.live.decodelib.ServerSocketMgr;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
+import androidx.annotation.RequiresApi;
+import come.live.decodelib.MsgCenterMgr;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends BaseActivity {
 
+    private SurfaceView surfaceView;
+    private SurfaceHolder mSurfaceHolder;
+    private MsgCenterMgr msgCenterMgr;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        initView();
+    }
+
+    @Override
+    protected int getLayout() {
+        return R.layout.activity_main;
+    }
+
+    private void initView(){
+        surfaceView = findViewById(R.id.surfaceView1);
+        mSurfaceHolder = surfaceView.getHolder();
+        mSurfaceHolder.addCallback(new SurfaceHolder.Callback() {
+            @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
+            @Override
+            public void surfaceCreated(SurfaceHolder holder) {
+                msgCenterMgr = new MsgCenterMgr();
+                msgCenterMgr.initMediaCodec(surfaceView.getWidth(),surfaceView.getHeight(),holder.getSurface());
+                msgCenterMgr.start();
+            }
+
+            @Override
+            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+
+            }
+
+            @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
+            @Override
+            public void surfaceDestroyed(SurfaceHolder holder) {
+                if(msgCenterMgr != null){
+                    msgCenterMgr.shutDown();
+                }
+            }
+        });
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if(msgCenterMgr != null){
+            msgCenterMgr.shutDown();
+            msgCenterMgr = null;
+        }
     }
 }
