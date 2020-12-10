@@ -36,6 +36,11 @@ public class DecodeH264Thread extends Thread {
         format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, width * height);
         format.setInteger(MediaFormat.KEY_MAX_HEIGHT, height);
         format.setInteger(MediaFormat.KEY_MAX_WIDTH, width);
+        //byte[] header_sps = {0, 0, 0, 1, 103, 66, -128, 31, -38, 2, -48, 40, 104, 6, -48, -95, 53};
+        //byte[] header_pps = {0, 0 ,0, 1, 104, -50, 6, -30};
+        ////横屏
+        //byte[] header_sps = {0, 0, 0, 1, 103, 66, -128, 31, -38, 1, 64, 22, -24, 6, -48, -95, 53};
+        //byte[] header_pps = {0, 0 ,0, 1, 104, -50, 6, -30};
         //format.setByteBuffer("csd-0", ByteBuffer.wrap(mSps));
         //format.setByteBuffer("csd-1", ByteBuffer.wrap(mPps));
         try {
@@ -75,18 +80,14 @@ public class DecodeH264Thread extends Thread {
 
     private void decodeH264(){
         while (isStart){
-            while (!oriH264Queue.isEmpty()){
+            while(!oriH264Queue.isEmpty()){
                 byte[] frame = oriH264Queue.poll();
-                if(frame != null && frame.length > 0){
-                    onFrame(frame,0,frame.length);
-                }else {
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-
+                onFrame(frame,0,frame.length);
+            }
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }
     }
@@ -107,12 +108,6 @@ public class DecodeH264Thread extends Thread {
             inputBuffer.put(buf, offset, length);
             mediaCodec.queueInputBuffer(inputBufferIndex, 0, length, System.currentTimeMillis(), 0);
         } else {
-            try {
-                //无可用缓存时，休眠100ms
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
             return false;
         }
         MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();

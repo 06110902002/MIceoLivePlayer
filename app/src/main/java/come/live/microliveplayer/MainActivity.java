@@ -31,7 +31,9 @@ public class MainActivity extends BaseActivity {
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
                 msgCenterMgr = new MsgCenterMgr();
-                msgCenterMgr.initMediaCodec(surfaceView.getWidth(),surfaceView.getHeight(),holder.getSurface());
+                int mWidth = 1280;
+                int mHeight = 720;
+                msgCenterMgr.setConfig(mWidth,mHeight,holder.getSurface());
                 msgCenterMgr.start();
             }
 
@@ -45,6 +47,7 @@ public class MainActivity extends BaseActivity {
             public void surfaceDestroyed(SurfaceHolder holder) {
                 if(msgCenterMgr != null){
                     msgCenterMgr.shutDown();
+                    msgCenterMgr = null;
                 }
             }
         });

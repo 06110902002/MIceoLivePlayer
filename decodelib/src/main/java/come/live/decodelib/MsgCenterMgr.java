@@ -8,7 +8,9 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import android.util.Log;
 import android.view.Surface;
+import android.view.SurfaceControl;
 import come.live.decodelib.model.LiveHead;
 import come.live.decodelib.utils.LogUtils;
 import come.live.decodelib.utils.ReadMsgUtils;
@@ -31,6 +33,7 @@ public class MsgCenterMgr extends Thread {
     private OutputStream outputStream;
     private LinkedBlockingQueue<byte[]> oriH264Queue;
     private DecodeH264Thread decodeH264Thread;
+    private boolean isRunning = false;
 
     @Override
     public void run() {
@@ -44,11 +47,12 @@ public class MsgCenterMgr extends Thread {
      */
     public void init(){
         try {
+            LogUtils.v("开始监听连接......");
             serverSocket = new ServerSocket();
             serverSocket.setReuseAddress(true);
             InetSocketAddress socketAddress = new InetSocketAddress(PORT);
             serverSocket.bind(socketAddress);
-            serverSocket.setSoTimeout(20000);
+            serverSocket.setSoTimeout(60 * 1000);
             while (true){
                 socket = serverSocket.accept();
                 inputStream = socket.getInputStream();
@@ -56,11 +60,13 @@ public class MsgCenterMgr extends Thread {
                     LogUtils.v("socket连接成功:"+socket.getInetAddress());
                     break;
                 }else{
-                    Thread.sleep(1000);
+                    Thread.sleep(100);
                 }
             }
+            isRunning = true;
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
+            isRunning = false;
         }
     }
 
@@ -70,7 +76,7 @@ public class MsgCenterMgr extends Thread {
      * @param height   解码器输入画面高度
      * @param surface  解码h264之后渲染画面
      */
-    public void initMediaCodec(int width,int height, Surface surface){
+    public void setConfig(int width,int height, Surface surface){
         oriH264Queue = new LinkedBlockingQueue<>();
         decodeH264Thread = new DecodeH264Thread(oriH264Queue,width,height,surface);
         decodeH264Thread.start();
@@ -80,7 +86,7 @@ public class MsgCenterMgr extends Thread {
      * 将客户端发来的消息入队，等待解码
      */
     public void readMessage(){
-        while(isConnected()){
+        while(isRunning){
             try {
                 byte[] header = ReadMsgUtils.readBytesByLength(inputStream, 8);
                 if (header == null || header.length == 0) {
@@ -88,7 +94,7 @@ public class MsgCenterMgr extends Thread {
                     continue;
                 }
                 LiveHead liveHead = ReadMsgUtils.analysisHeader(header);
-                LogUtils.v("正在读取消息,协议类型："+liveHead.getType());
+                Log.v("msgCenterMgr","正在读取消息,协议类型："+liveHead.getType());
                 if(liveHead.getBuffSize() <= 0){
                     Thread.sleep(10);
                     continue;
