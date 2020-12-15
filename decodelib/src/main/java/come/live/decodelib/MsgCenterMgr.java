@@ -8,9 +8,12 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceControl;
+import androidx.annotation.NonNull;
 import come.live.decodelib.model.LiveHead;
 import come.live.decodelib.utils.LogUtils;
 import come.live.decodelib.utils.ReadMsgUtils;
@@ -26,6 +29,8 @@ import come.live.decodelib.utils.ReadMsgUtils;
  */
 public class MsgCenterMgr extends Thread {
 
+    private final int RECONNECT = 23;
+    private ReconnectHandler mHandler;
     private final int PORT = 12580;
     private ServerSocket serverSocket;
     private Socket socket;
@@ -40,6 +45,10 @@ public class MsgCenterMgr extends Thread {
         super.run();
         init();
         readMessage();
+    }
+
+    public MsgCenterMgr(){
+        mHandler = new ReconnectHandler();
     }
 
     /**
@@ -107,6 +116,8 @@ public class MsgCenterMgr extends Thread {
                 oriH264Queue.put(receiveData);
             } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
+                shutDown();
+                mHandler.sendEmptyMessageDelayed(RECONNECT,3000);
             }
         }
     }
@@ -115,12 +126,29 @@ public class MsgCenterMgr extends Thread {
         return socket != null && socket.isConnected();
     }
 
+    private class ReconnectHandler extends Handler {
+
+        @Override
+        public void handleMessage(@NonNull Message msg) {
+            super.handleMessage(msg);
+            switch (msg.what){
+                case RECONNECT:
+                    oriH264Queue.clear();
+                    init();
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
     /**
      * 关闭消息中心
      */
     public void shutDown(){
         if(isConnected()){
             try {
+                serverSocket.close();
                 socket.close();
                 socket = null;
             } catch (IOException e) {

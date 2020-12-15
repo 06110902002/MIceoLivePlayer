@@ -31,8 +31,8 @@ public class MainActivity extends BaseActivity {
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
                 msgCenterMgr = new MsgCenterMgr();
-                int mWidth = 1280;
-                int mHeight = 720;
+                int mWidth = 360; //与客户端保持一致
+                int mHeight = 640;
                 msgCenterMgr.setConfig(mWidth,mHeight,holder.getSurface());
                 msgCenterMgr.start();
             }
