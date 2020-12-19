@@ -31,7 +31,7 @@ public class MsgCenterMgr extends Thread {
 
     private final int RECONNECT = 23;
     private ReconnectHandler mHandler;
-    private final int PORT = 12580;
+    public static final int PORT = 12580;
     private ServerSocket serverSocket;
     private Socket socket;
     private InputStream inputStream;
@@ -39,7 +39,6 @@ public class MsgCenterMgr extends Thread {
     private LinkedBlockingQueue<byte[]> oriH264Queue;
     private DecodeH264Thread decodeH264Thread;
     private boolean isRunning = false;
-
     @Override
     public void run() {
         super.run();
