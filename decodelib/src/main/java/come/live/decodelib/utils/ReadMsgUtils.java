@@ -3,6 +3,7 @@ package come.live.decodelib.utils;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.Socket;
 
 import come.live.decodelib.model.LiveHead;
 
@@ -79,6 +80,41 @@ public class ReadMsgUtils {
         byte[] b = baos.toByteArray();
         baos.close();
         return b;
+    }
+
+    /**
+     * 保证从流里读到指定长度数据
+     *
+     * @param socket        输入流
+     * @param size          读入的尺寸
+     * @return              读取指定长度的byte[]
+     * @throws IOException  当socket通道关闭，或者读取的过程中发生断开则丢出异常
+     */
+    public static byte[] readBytesByLength(Socket socket,int size) throws IOException {
+        if (socket != null && socket.isConnected()) {
+            InputStream is = socket.getInputStream();
+            byte[] buff = new byte[size];
+            int len = 0;
+            int eachLen = 0;
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            while (len < size) {
+                eachLen = is.read(buff);
+                if (eachLen != -1) {
+                    len += eachLen;
+                    baos.write(buff, 0, eachLen);
+                } else {
+                    baos.close();
+                    throw new IOException();
+                }
+                if (len < size) {
+                    buff = new byte[size - len];
+                }
+            }
+            byte[] b = baos.toByteArray();
+            baos.close();
+            return b;
+        }
+        return null;
     }
 
 

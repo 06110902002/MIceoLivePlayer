@@ -86,8 +86,9 @@ public class MsgCenterMgr extends Thread {
      */
     public void setConfig(int width,int height, Surface surface){
         oriH264Queue = new LinkedBlockingQueue<>();
-        decodeH264Thread = new DecodeH264Thread(oriH264Queue,width,height,surface);
-        decodeH264Thread.start();
+        //decodeH264Thread = new DecodeH264Thread(oriH264Queue,width,height,surface);
+        //decodeH264Thread.start();
+        new TestAudioThread(oriH264Queue).start();
     }
 
     /**
@@ -113,10 +114,12 @@ public class MsgCenterMgr extends Thread {
                     continue;
                 }
                 oriH264Queue.put(receiveData);
-            } catch (IOException | InterruptedException e) {
+            } catch (IOException e) {
                 e.printStackTrace();
                 shutDown();
                 mHandler.sendEmptyMessageDelayed(RECONNECT,3000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }
     }
@@ -132,7 +135,6 @@ public class MsgCenterMgr extends Thread {
             super.handleMessage(msg);
             switch (msg.what){
                 case RECONNECT:
-                    oriH264Queue.clear();
                     init();
                     break;
                 default:
