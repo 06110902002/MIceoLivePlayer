@@ -51,6 +51,11 @@ public class LiveEntity implements Serializable {
      */
     private byte[] content;
 
+    public LiveEntity(int type, byte[] content){
+        this.type = type;
+        this.content = content;
+    }
+
 
     public int getType() {
         return type;

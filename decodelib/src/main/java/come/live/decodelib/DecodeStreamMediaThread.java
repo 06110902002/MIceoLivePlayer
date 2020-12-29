@@ -21,16 +21,8 @@ public class DecodeStreamMediaThread extends Thread{
     private VideoPlay videoPlay;
     private AudioPlay audioPlay;
 
-    public static DecodeStreamMediaThread getInstance(){
-        if(decodeStreamMediaThread == null){
-            synchronized (DecodeStreamMediaThread.class){
-                decodeStreamMediaThread = new DecodeStreamMediaThread();
-            }
-        }
-        return decodeStreamMediaThread;
-    }
 
-    private DecodeStreamMediaThread(){
+    public DecodeStreamMediaThread(){
         videoPlay = new VideoPlay();
         audioPlay = new AudioPlay();
     }
@@ -49,7 +41,7 @@ public class DecodeStreamMediaThread extends Thread{
      * @param height  高度
      * @param surface 渲染显示对象
      */
-    private void initVideoMeidaCodec(int width,int height, Surface surface){
+    public void initVideoMeidaCodec(int width,int height, Surface surface){
         isStart = videoPlay.initMediaCodec(width,height,surface);
     }
 
@@ -91,13 +83,20 @@ public class DecodeStreamMediaThread extends Thread{
                 Thread.sleep(50);
             } catch (InterruptedException e) {
                 e.printStackTrace();
+                isStart = false;
             }
         }
     }
 
     public void stopDecodec(){
+        isStart = false;
+        if(liveEntitiesQueue != null){
+            liveEntitiesQueue.clear();
+            liveEntitiesQueue = null;
+        }
+
         if(videoPlay != null){
-            videoPlay.stopPlay();
+            videoPlay.release();
             videoPlay = null;
         }
 
@@ -105,7 +104,5 @@ public class DecodeStreamMediaThread extends Thread{
             audioPlay.release();
             audioPlay = null;
         }
-        isStart = false;
-        interrupt();
     }
 }

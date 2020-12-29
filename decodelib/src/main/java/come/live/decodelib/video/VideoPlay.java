@@ -78,7 +78,7 @@ public class VideoPlay {
         return true;
     }
 
-    public void stopPlay(){
+    public void release(){
         isStart = false;
         if (mediaCodec != null) {
             mediaCodec.stop();

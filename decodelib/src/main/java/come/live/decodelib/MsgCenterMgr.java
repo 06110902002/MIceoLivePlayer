@@ -14,7 +14,9 @@ import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceControl;
 import androidx.annotation.NonNull;
+import come.live.decodelib.model.LiveEntity;
 import come.live.decodelib.model.LiveHead;
+import come.live.decodelib.utils.ByteUtil;
 import come.live.decodelib.utils.LogUtils;
 import come.live.decodelib.utils.ReadMsgUtils;
 
@@ -27,7 +29,7 @@ import come.live.decodelib.utils.ReadMsgUtils;
  * 1.负责消息读取-入队
  * 2.负责解码器的生命周期
  */
-public class MsgCenterMgr extends Thread {
+public class MsgCenterMgr {
 
     private final int RECONNECT = 23;
     private ReconnectHandler mHandler;
@@ -39,15 +41,35 @@ public class MsgCenterMgr extends Thread {
     private LinkedBlockingQueue<byte[]> oriH264Queue;
     private DecodeH264Thread decodeH264Thread;
     private boolean isRunning = false;
-    @Override
-    public void run() {
-        super.run();
-        init();
-        readMessage();
-    }
+    private ReadMsgThread readMsgThread;
+    private LinkedBlockingQueue<LiveEntity> streamQueue;
+    private DecodeStreamMediaThread decodeStreamMediaThread;
+    private int width;
+    private int height;
+    private Surface surface;
 
     public MsgCenterMgr(){
         mHandler = new ReconnectHandler();
+    }
+
+    public void start(){
+        if(isRunning) {
+            LogUtils.v("已经启动了，无需再次启动......");
+            return;
+        }
+        if(surface == null){
+            LogUtils.v("渲染视频对象参数错误，请提供一个渲染解码后的surface,当前surface:"+surface);
+            return;
+        }
+        readMsgThread = new ReadMsgThread();
+        readMsgThread.start();
+
+        streamQueue = new LinkedBlockingQueue<>();
+
+        decodeStreamMediaThread = new DecodeStreamMediaThread();
+        decodeStreamMediaThread.setStreamMediaQueue(streamQueue);
+        decodeStreamMediaThread.initVideoMeidaCodec(width,height,surface);
+        decodeStreamMediaThread.start();
     }
 
     /**
@@ -85,10 +107,17 @@ public class MsgCenterMgr extends Thread {
      * @param surface  解码h264之后渲染画面
      */
     public void setConfig(int width,int height, Surface surface){
-        oriH264Queue = new LinkedBlockingQueue<>();
+        //测试单独解码视频
+        //oriH264Queue = new LinkedBlockingQueue<>();
         //decodeH264Thread = new DecodeH264Thread(oriH264Queue,width,height,surface);
         //decodeH264Thread.start();
-        new TestAudioThread(oriH264Queue).start();
+
+        //测试单独解码音频
+        //new TestAudioThread(oriH264Queue).start();
+
+        this.width = width;
+        this.height = height;
+        this.surface = surface;
     }
 
     /**
@@ -102,19 +131,37 @@ public class MsgCenterMgr extends Thread {
                     Thread.sleep(10);
                     continue;
                 }
-                LiveHead liveHead = ReadMsgUtils.analysisHeader(header);
-                Log.v("msgCenterMgr","正在读取消息,协议类型："+liveHead.getType());
-                if(liveHead.getBuffSize() <= 0){
-                    Thread.sleep(10);
-                    continue;
-                }
-                byte[] receiveData = ReadMsgUtils.analysisDataWithHead(inputStream, liveHead);
-                if(receiveData == null || receiveData.length <= 0){
-                    Thread.sleep(10);
-                    continue;
-                }
-                oriH264Queue.put(receiveData);
+                //LiveHead liveHead = ReadMsgUtils.analysisHeader(header);
+                //Log.v("msgCenterMgr","正在读取消息,协议类型："+liveHead.getType());
+                //if(liveHead.getBuffSize() <= 0){
+                //    Thread.sleep(10);
+                //    continue;
+                //}
+                //byte[] receiveData = ReadMsgUtils.analysisDataWithHead(inputStream, liveHead);
+                //if(receiveData == null || receiveData.length <= 0){
+                //    Thread.sleep(10);
+                //    continue;
+                //}
+                //oriH264Queue.put(receiveData);
+
+
+                byte[] typeBuff = new byte[4];
+                //协议类型
+                System.arraycopy(header, 0, typeBuff, 0, 3);
+                int type = ByteUtil.bytesToInt(typeBuff);
+
+                byte[] lengthByte = new byte[4];
+                //报文长度
+                System.arraycopy(header,4,lengthByte,0,3);
+                int len = ByteUtil.bytesToInt(lengthByte);
+
+                byte[] content = ReadMsgUtils.readBytesByLength(inputStream, len);
+
+                LiveEntity liveEntity = new LiveEntity(type,content);
+                streamQueue.put(liveEntity);
+
             } catch (IOException e) {
+                LogUtils.v("读取网络数据发生异常，请检查客户端是否存活，网络是否异常，系统将在3秒后重新启动，具体异常信息如下:");
                 e.printStackTrace();
                 shutDown();
                 mHandler.sendEmptyMessageDelayed(RECONNECT,3000);
@@ -135,7 +182,7 @@ public class MsgCenterMgr extends Thread {
             super.handleMessage(msg);
             switch (msg.what){
                 case RECONNECT:
-                    init();
+                    start();
                     break;
                 default:
                     break;
@@ -147,6 +194,14 @@ public class MsgCenterMgr extends Thread {
      * 关闭消息中心
      */
     public void shutDown(){
+        if(readMsgThread != null){
+            readMsgThread.cancel();
+            readMsgThread = null;
+        }
+        if(decodeStreamMediaThread != null){
+            decodeStreamMediaThread.stopDecodec();
+            decodeStreamMediaThread = null;
+        }
         if(isConnected()){
             try {
                 serverSocket.close();
@@ -167,5 +222,23 @@ public class MsgCenterMgr extends Thread {
             oriH264Queue = null;
         }
 
+    }
+
+    /**
+     * 读取消息的线程
+     */
+    private class ReadMsgThread extends Thread{
+
+        @Override
+        public void run() {
+            super.run();
+            init();
+            readMessage();
+        }
+
+        public void cancel(){
+            isRunning = false;
+            interrupt();
+        }
     }
 }

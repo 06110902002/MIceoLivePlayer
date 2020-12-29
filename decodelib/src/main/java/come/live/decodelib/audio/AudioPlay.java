@@ -112,6 +112,13 @@ public class AudioPlay {
 
 
     public void release() {
+
+        isStartPlay = false;
+        if(audioQueue != null) {
+            audioQueue.clear();
+            audioQueue = null;
+        }
+
         if (mAudioMediaCodec != null) {
             mAudioMediaCodec.stop();
             mAudioMediaCodec.release();
@@ -124,12 +131,16 @@ public class AudioPlay {
         }
     }
 
+    private boolean isQueueValid() {
+        return audioQueue != null && !audioQueue.isEmpty();
+    }
+
     private class PlayThread extends Thread{
         @Override
         public void run() {
             super.run();
             while(isStartPlay){
-                while (!audioQueue.isEmpty() && mAudioTrack != null){
+                while (isQueueValid() && mAudioTrack != null){
                     byte[] audioFrame = audioQueue.poll();
                     mAudioTrack.write(audioFrame, 0, audioFrame.length);
                 }
