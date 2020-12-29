@@ -62,6 +62,7 @@ public class VideoPlay {
         if (inputBufferIndex >= 0) {
             ByteBuffer inputBuffer = inputBuffers[inputBufferIndex];
             inputBuffer.clear();
+            inputBuffer.limit(length);
             inputBuffer.put(buf, offset, length);
             mediaCodec.queueInputBuffer(inputBufferIndex, 0, length, System.currentTimeMillis(), 0);
         } else {

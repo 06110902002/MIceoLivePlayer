@@ -83,7 +83,7 @@ public class MsgCenterMgr {
             InetSocketAddress socketAddress = new InetSocketAddress(PORT);
             serverSocket.bind(socketAddress);
             serverSocket.setSoTimeout(60 * 1000);
-            while (true){
+            while (serverSocket != null){
                 socket = serverSocket.accept();
                 inputStream = socket.getInputStream();
                 if (socket.isConnected()) {
@@ -204,9 +204,16 @@ public class MsgCenterMgr {
         }
         if(isConnected()){
             try {
-                serverSocket.close();
                 socket.close();
                 socket = null;
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        if(serverSocket != null){
+            try {
+                serverSocket.close();
+                serverSocket = null;
             } catch (IOException e) {
                 e.printStackTrace();
             }
