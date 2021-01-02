@@ -61,13 +61,13 @@ public class DecodeStreamMediaThread extends Thread{
                     isStart = false;
                 }
             }
-            while(!liveEntitiesQueue.isEmpty()){
+            while(liveEntitiesQueue != null && !liveEntitiesQueue.isEmpty()){
                 LiveEntity liveEntity = liveEntitiesQueue.poll();
                 if (liveEntity != null) {
 
                     if (liveEntity.getType() == LiveEntity.AUDIO) {
                         audioPlay.playAudio(liveEntity.getContent(),0,liveEntity.getContent().length);
-                    }else {
+                    }else{
                         videoPlay.onFrame(liveEntity.getContent(),0,liveEntity.getContent().length);
                     }
 
@@ -90,6 +90,7 @@ public class DecodeStreamMediaThread extends Thread{
 
     public void stopDecodec(){
         isStart = false;
+        interrupt();
         if(liveEntitiesQueue != null){
             liveEntitiesQueue.clear();
             liveEntitiesQueue = null;

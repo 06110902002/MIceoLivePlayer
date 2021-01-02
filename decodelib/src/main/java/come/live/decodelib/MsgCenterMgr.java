@@ -10,6 +10,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import android.os.Handler;
 import android.os.Message;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceControl;
@@ -47,17 +48,21 @@ public class MsgCenterMgr {
     private int width;
     private int height;
     private Surface surface;
+    private VideoSizeChangeListener videoSizeChangeListener;
 
     public MsgCenterMgr(){
         mHandler = new ReconnectHandler();
     }
 
+    public void setVideoSizeChangeListener(VideoSizeChangeListener listener){
+        this.videoSizeChangeListener = listener;
+    }
     public void start(){
         if(isRunning) {
             LogUtils.v("已经启动了，无需再次启动......");
             return;
         }
-        if(surface == null){
+        if(surface == null || !surface.isValid()){
             LogUtils.v("渲染视频对象参数错误，请提供一个渲染解码后的surface,当前surface:"+surface);
             return;
         }
@@ -157,8 +162,20 @@ public class MsgCenterMgr {
 
                 byte[] content = ReadMsgUtils.readBytesByLength(inputStream, len);
 
-                LiveEntity liveEntity = new LiveEntity(type,content);
-                streamQueue.put(liveEntity);
+                if(type == LiveEntity.RESOLUTION){
+
+                    String tmp = ByteUtil.bytes2String(content);
+                    LogUtils.v("分辨率："+tmp);
+                    if (videoSizeChangeListener != null && !TextUtils.isEmpty(tmp)){
+                        String[] resolutions = tmp.split(":");
+                        videoSizeChangeListener.onVideoSizeChange(Integer.parseInt(resolutions[0]),Integer.parseInt(resolutions[1]));
+                    }
+
+                } else {
+                    LiveEntity liveEntity = new LiveEntity(type,content);
+                    streamQueue.put(liveEntity);
+                }
+
 
             } catch (IOException e) {
                 LogUtils.v("读取网络数据发生异常，请检查客户端是否存活，网络是否异常，系统将在3秒后重新启动，具体异常信息如下:");

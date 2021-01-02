@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
 import android.view.Surface;
+import come.live.decodelib.utils.LogUtils;
 
 /**
  * author         hengyang.lxb
@@ -61,8 +62,12 @@ public class VideoPlay {
         int inputBufferIndex = mediaCodec.dequeueInputBuffer(100);
         if (inputBufferIndex >= 0) {
             ByteBuffer inputBuffer = inputBuffers[inputBufferIndex];
+            if(length > inputBuffer.capacity()){
+                String log = String.format("当前待存入缓存视频帧长度大于%d 缓存inputBuffer最大容量：%d",length,inputBuffer.capacity());
+                LogUtils.v(log);
+                return false;
+            }
             inputBuffer.clear();
-            inputBuffer.limit(length);
             inputBuffer.put(buf, offset, length);
             mediaCodec.queueInputBuffer(inputBufferIndex, 0, length, System.currentTimeMillis(), 0);
         } else {

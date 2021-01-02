@@ -35,6 +35,10 @@ public class LiveEntity implements Serializable {
      * 音频帧
      */
     public final static int AUDIO = 26;
+    /**
+     * 分辨率
+     */
+    public final static int RESOLUTION = 27;
 
 
     /**

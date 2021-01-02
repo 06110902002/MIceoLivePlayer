@@ -197,7 +197,7 @@ public class H264SPSParse {
             if (data[i] == 0 && data[i + 1] == 0 && data[i + 2] == 0 && data[i + 3] == 1 && data[i + 4] == 0x67) {
                 int[] size = new int[2];
                 h264_decode_seq_parameter_set(data, data.length, size);
-                Log.d(TAG, "Sps=(" + size[0] + ", " + size[1] + ")");
+                LogUtils.d("Sps=(" + size[0] + ", " + size[1] + ")");
                 return size;
             }
         }
