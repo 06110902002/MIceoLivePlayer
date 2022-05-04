@@ -41,7 +41,7 @@ public class DecodeStreamMediaThread extends Thread{
      * @param height  高度
      * @param surface 渲染显示对象
      */
-    public void initVideoMeidaCodec(int width,int height, Surface surface){
+    public void initVideoMediaCodec(int width,int height, Surface surface){
         isStart = videoPlay.initMediaCodec(width,height,surface);
     }
 

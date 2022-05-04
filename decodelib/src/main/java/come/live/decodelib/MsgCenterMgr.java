@@ -20,6 +20,8 @@ import come.live.decodelib.model.LiveHead;
 import come.live.decodelib.utils.ByteUtil;
 import come.live.decodelib.utils.LogUtils;
 import come.live.decodelib.utils.ReadMsgUtils;
+import come.live.decodelib.video.MirrorContext;
+import come.live.decodelib.video.VideoPlay;
 
 /**
  * @author  hengyang.lxb
@@ -49,6 +51,10 @@ public class MsgCenterMgr {
     private int height;
     private Surface surface;
     private VideoSizeChangeListener videoSizeChangeListener;
+    private MirrorContext mirrorContext;
+    private byte[] sps;
+    private byte[] pps;
+    private VideoPlay videoPlay;
 
     public MsgCenterMgr(){
         mHandler = new ReconnectHandler();
@@ -71,10 +77,13 @@ public class MsgCenterMgr {
 
         streamQueue = new LinkedBlockingQueue<>();
 
-        decodeStreamMediaThread = new DecodeStreamMediaThread();
-        decodeStreamMediaThread.setStreamMediaQueue(streamQueue);
-        decodeStreamMediaThread.initVideoMeidaCodec(width,height,surface);
-        decodeStreamMediaThread.start();
+        //decodeStreamMediaThread = new DecodeStreamMediaThread();
+        //decodeStreamMediaThread.setStreamMediaQueue(streamQueue);
+        //decodeStreamMediaThread.initVideoMediaCodec(width,height,surface);
+        //decodeStreamMediaThread.start();
+
+        videoPlay = new VideoPlay();
+        videoPlay.initMediaCodec(width,height,surface);
     }
 
     /**
@@ -91,6 +100,7 @@ public class MsgCenterMgr {
             while (serverSocket != null){
                 socket = serverSocket.accept();
                 inputStream = socket.getInputStream();
+                outputStream = socket.getOutputStream();
                 if (socket.isConnected()) {
                     LogUtils.v("socket连接成功:"+socket.getInetAddress());
                     break;
@@ -123,6 +133,10 @@ public class MsgCenterMgr {
         this.width = width;
         this.height = height;
         this.surface = surface;
+
+        //mirrorContext = new MirrorContext(null,mHandler,false);
+        //mirrorContext.setSurface(surface);
+
     }
 
     /**
@@ -171,9 +185,24 @@ public class MsgCenterMgr {
                         videoSizeChangeListener.onVideoSizeChange(Integer.parseInt(resolutions[0]),Integer.parseInt(resolutions[1]));
                     }
 
-                } else {
-                    LiveEntity liveEntity = new LiveEntity(type,content);
-                    streamQueue.put(liveEntity);
+                } else if(type == 29){
+                    //sendLiveDate(typeBuff,lengthByte,content);
+                } /*else if(type == LiveEntity.SPS) {
+                    sps = content;
+                    mirrorContext.setupCodec(this.width,this.height,content,System.currentTimeMillis());
+
+                }else if (type == LiveEntity.PPS) {
+                    pps = content;
+                    byte[] newBuf = new byte[sps.length + pps.length];
+                    System.arraycopy(sps, 0, newBuf, 0, sps.length);
+                    System.arraycopy(pps, 0, newBuf, sps.length, pps.length);
+                    mirrorContext.setupCodec(this.width,this.height,newBuf,System.currentTimeMillis());
+                }*/
+                else {
+                    //LiveEntity liveEntity = new LiveEntity(type,content);
+                    //streamQueue.put(liveEntity);
+                   // mirrorContext.writeData(ByteUtil.byte2ByteBuffer(content),System.currentTimeMillis());
+                    videoPlay.putH264InputBuffer(content);
                 }
 
 
@@ -246,6 +275,10 @@ public class MsgCenterMgr {
             oriH264Queue = null;
         }
 
+        if(videoPlay != null){
+            videoPlay.release();
+        }
+
     }
 
     /**
@@ -263,6 +296,23 @@ public class MsgCenterMgr {
         public void cancel(){
             isRunning = false;
             interrupt();
+        }
+    }
+
+    /**
+     * 发送live 报文
+     */
+    private void sendLiveDate(byte[] type, byte[] length, byte[] content) {
+
+        if (outputStream != null) {
+            try {
+                outputStream.write(type, 0, type.length);
+                outputStream.write(length, 0, length.length);
+                outputStream.write(content, 0, content.length);
+                outputStream.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 }

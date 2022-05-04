@@ -1,6 +1,7 @@
 package come.live.decodelib.utils;
 
 import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
 
 /**
  * Author:      hengyang
@@ -100,5 +101,40 @@ public class ByteUtil {
             e.printStackTrace();
         }
         return null;
+    }
+
+    /**
+     * byte 数组转byteBuffer
+     *
+     * @param byteArray
+     */
+    public static ByteBuffer byte2ByteBuffer(byte[] byteArray) {
+
+        //初始化一个和byte长度一样的buffer
+        ByteBuffer buffer = ByteBuffer.allocate(byteArray.length);
+        // 数组放到buffer中
+        buffer.put(byteArray);
+        //重置 limit 和postion 值 否则 buffer 读取数据不对
+        buffer.flip();
+        return buffer;
+    }
+
+    /**
+     * byteBuffer 转 byte数组
+     *
+     * @param buffer
+     * @return
+     */
+    public static byte[] bytebuffer2ByteArray(ByteBuffer buffer) {
+        //重置 limit 和postion 值
+        buffer.flip();
+        //获取buffer中有效大小
+        int len = buffer.limit() - buffer.position();
+        byte[] bytes = new byte[len];
+        for (int i = 0; i < bytes.length; i++) {
+            bytes[i] = buffer.get();
+
+        }
+        return bytes;
     }
 }

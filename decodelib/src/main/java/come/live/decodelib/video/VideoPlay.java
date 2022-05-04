@@ -18,6 +18,10 @@ public class VideoPlay {
 
     private MediaCodec mediaCodec;
     private boolean isStart = false;
+    private ByteBuffer[] mInputBuffers;
+    private ByteBuffer[] mOutputBuffers;
+    private String mediaCodecStatus;
+    private PlayerThread playerThread;
 
     /**
      * 初始化解码器
@@ -43,6 +47,10 @@ public class VideoPlay {
             mediaCodec.configure(format, surface, null, 0);
             mediaCodec.start();
             isStart = true;
+            mInputBuffers = mediaCodec.getInputBuffers();
+            mOutputBuffers = mediaCodec.getOutputBuffers();
+            playerThread = new PlayerThread();
+            playerThread.start();
         } catch (IOException e) {
             e.printStackTrace();
             isStart = false;
@@ -51,12 +59,13 @@ public class VideoPlay {
     }
 
     /**
-     * 解码
+     * 解码,先将h264放入输入队列，再遍历解码,本接口已经过时
      * @param buf    待解码的一帧数据
      * @param offset 起始位置，本接口起始位置为0
      * @param length 解码长度
      * @return       解码结果
      */
+    @Deprecated
     public boolean onFrame(byte[] buf, int offset, int length) {
         ByteBuffer[] inputBuffers = mediaCodec.getInputBuffers();
         int inputBufferIndex = mediaCodec.dequeueInputBuffer(100);
@@ -84,12 +93,89 @@ public class VideoPlay {
         return true;
     }
 
+    /**
+     * 将H264帧放入输入队列，等待解码
+     *
+     * @param h264Buffer 原始h264数据
+     */
+    public void putH264InputBuffer(byte[] h264Buffer) {
+        if (h264Buffer == null || h264Buffer.length <= 0) {
+            return;
+        }
+        if (mediaCodec == null) {
+            return;
+        }
+        for (; ; ) {
+            int idx = mediaCodec.dequeueInputBuffer(10000);//10ms
+            if (idx >= 0) {
+                ByteBuffer input = mInputBuffers[idx];
+                int length = h264Buffer.length;
+                input.clear();
+                input.put(h264Buffer);
+                mediaCodec.queueInputBuffer(idx, 0, length, 0, 0);
+                break;
+            } else {
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                LogUtils.v("queueInputBuffer failed: idx=" + idx);
+            }
+        }
+
+    }
+
+    /**
+     * 从MediaCodec中输入队列获取待解码的h264数据进行解码
+     *
+     * @param bufferInfo MediaCodec中输入队列数据
+     */
+    public void onFrame(MediaCodec.BufferInfo bufferInfo){
+        int idx = mediaCodec.dequeueOutputBuffer(bufferInfo, 50000);
+        switch (idx) {
+            case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
+                LogUtils.v( "INFO_OUTPUT_BUFFERS_CHANGED");
+                mOutputBuffers = mediaCodec.getOutputBuffers();
+                break;
+            case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
+                LogUtils.v( "New format " + mediaCodec.getOutputFormat());
+                break;
+            case MediaCodec.INFO_TRY_AGAIN_LATER:
+                LogUtils.v( "dequeueOutputBuffer timed out!");
+                Thread.yield();
+                break;
+            default:
+                ByteBuffer buffer = mOutputBuffers[idx];
+                mediaCodec.releaseOutputBuffer(idx, true);
+                break;
+        }
+    }
+
+
+    private class PlayerThread extends Thread{
+
+        @Override
+        public void run() {
+            super.run();
+            MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
+            while (isStart){
+                onFrame(bufferInfo);
+            }
+
+        }
+
+    }
+
     public void release(){
         isStart = false;
         if (mediaCodec != null) {
             mediaCodec.stop();
             mediaCodec.release();
             mediaCodec = null;
+        }
+        if(playerThread != null){
+            playerThread = null;
         }
 
     }
