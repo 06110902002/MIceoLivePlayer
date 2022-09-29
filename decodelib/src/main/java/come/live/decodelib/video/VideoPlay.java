@@ -2,10 +2,19 @@ package come.live.decodelib.video;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import android.media.MediaCodec;
 import android.media.MediaFormat;
+import android.os.Build;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.util.Log;
 import android.view.Surface;
+
+import androidx.annotation.RequiresApi;
+
 import come.live.decodelib.utils.LogUtils;
 
 /**
@@ -22,6 +31,8 @@ public class VideoPlay {
     private ByteBuffer[] mOutputBuffers;
     private String mediaCodecStatus;
     private PlayerThread playerThread;
+    private BlockingQueue<byte[]> packets = new LinkedBlockingQueue<>(10);
+    private final HandlerThread mDecodeThread = new HandlerThread("VideoDecoder");
 
     /**
      * 初始化解码器
@@ -30,7 +41,8 @@ public class VideoPlay {
      * @param surface 渲染显示对象
      * @return 返回初始化结果
      */
-    public boolean initMediaCodec(int width,int height, Surface surface){
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    public boolean initMediaCodec(int width, int height, Surface surface){
         MediaFormat format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height);
         format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, width * height);
         format.setInteger(MediaFormat.KEY_MAX_HEIGHT, height);
@@ -45,17 +57,63 @@ public class VideoPlay {
         try {
             mediaCodec = MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
             mediaCodec.configure(format, surface, null, 0);
+            //使用同步的方式解码渲染
+            mDecodeThread.start();
+            mediaCodec.setCallback(mDecoderCallback, new Handler(mDecodeThread.getLooper()));
             mediaCodec.start();
-            isStart = true;
-            mInputBuffers = mediaCodec.getInputBuffers();
-            mOutputBuffers = mediaCodec.getOutputBuffers();
-            playerThread = new PlayerThread();
-            playerThread.start();
+            //使用  putH264InputBuffer  接口需要将这里打开
+            //isStart = true;
+//            mInputBuffers = mediaCodec.getInputBuffers();
+//            mOutputBuffers = mediaCodec.getOutputBuffers();
+//            playerThread = new PlayerThread();
+//            playerThread.start();
         } catch (IOException e) {
             e.printStackTrace();
             isStart = false;
         }
         return isStart;
+    }
+
+    //添加同步的方式 渲染  使用下列代码
+    private final MediaCodec.Callback mDecoderCallback = new MediaCodec.Callback() {
+        @Override
+        public void onInputBufferAvailable(MediaCodec codec, int index) {
+            try {
+                byte[] h264 = packets.take();
+                codec.getInputBuffer(index).put(h264);
+                mediaCodec.queueInputBuffer(index, 0, h264.length, System.currentTimeMillis(), 0);
+            } catch (InterruptedException e) {
+                throw new IllegalStateException("Interrupted when is waiting");
+            } catch (IllegalStateException e) {
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        public void onOutputBufferAvailable(MediaCodec codec, int index, MediaCodec.BufferInfo info) {
+            try {
+                codec.releaseOutputBuffer(index, true);
+            } catch (IllegalStateException e) {
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        public void onError(MediaCodec codec, MediaCodec.CodecException e) {
+
+        }
+
+        @Override
+        public void onOutputFormatChanged(MediaCodec codec, MediaFormat format) {
+
+        }
+    };
+    public void addH264Packer(byte[] nalPacket) {
+        try {
+            packets.put(nalPacket);
+        } catch (InterruptedException e) {
+            LogUtils.e("队列满了:", e);
+        }
     }
 
     /**
@@ -142,7 +200,7 @@ public class VideoPlay {
                 LogUtils.v( "New format " + mediaCodec.getOutputFormat());
                 break;
             case MediaCodec.INFO_TRY_AGAIN_LATER:
-                LogUtils.v( "dequeueOutputBuffer timed out!");
+                //LogUtils.v( "dequeueOutputBuffer timed out!");
                 Thread.yield();
                 break;
             default:
@@ -159,7 +217,7 @@ public class VideoPlay {
         public void run() {
             super.run();
             MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
-            while (isStart){
+            while (isStart && mediaCodec != null){
                 onFrame(bufferInfo);
             }
 

@@ -8,6 +8,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
 import android.text.TextUtils;
@@ -15,9 +16,12 @@ import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceControl;
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+
 import come.live.decodelib.model.LiveEntity;
 import come.live.decodelib.model.LiveHead;
 import come.live.decodelib.utils.ByteUtil;
+import come.live.decodelib.utils.H264SPSParse;
 import come.live.decodelib.utils.LogUtils;
 import come.live.decodelib.utils.ReadMsgUtils;
 import come.live.decodelib.video.MirrorContext;
@@ -63,6 +67,7 @@ public class MsgCenterMgr {
     public void setVideoSizeChangeListener(VideoSizeChangeListener listener){
         this.videoSizeChangeListener = listener;
     }
+    @RequiresApi(api = Build.VERSION_CODES.M)
     public void start(){
         if(isRunning) {
             LogUtils.v("已经启动了，无需再次启动......");
@@ -202,7 +207,11 @@ public class MsgCenterMgr {
                     //LiveEntity liveEntity = new LiveEntity(type,content);
                     //streamQueue.put(liveEntity);
                    // mirrorContext.writeData(ByteUtil.byte2ByteBuffer(content),System.currentTimeMillis());
-                    videoPlay.putH264InputBuffer(content);
+                    //方法二
+                    //videoPlay.putH264InputBuffer(content);
+                    //方法三 使用同步方式解码渲染 264
+                    videoPlay.addH264Packer(content);
+
                 }
 
 

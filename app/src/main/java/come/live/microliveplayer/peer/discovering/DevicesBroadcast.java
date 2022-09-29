@@ -23,10 +23,10 @@ import org.json.JSONObject;
  */
 public class DevicesBroadcast {
 
-    private static final String BROADCAST_IP = "224.0.0.1";
+    private static final String BROADCAST_IP = "224.0.0.10";
     private static final int BROADCAST_PORT  = 8681;
     private static final int BROADCAST_INTAL = 5 * 1000;
-    private static final int BROADCAST_LIVE  = 10;
+    private static final int BROADCAST_LIVE  = 100;
     private static byte[] broadcastPacket;
     private boolean isStartBroadcat = false;
     private static DevicesBroadcast devicesBroadcast;
@@ -111,6 +111,7 @@ public class DevicesBroadcast {
             address = InetAddress.getByName(BROADCAST_IP);
             //加入广播接收组
             multicastSocket.joinGroup(address);
+            multicastSocket.setLoopbackMode(false);// 必须是false才能开启广播功能
             broadcastPacket = buildBroadcastInfo(ip,MsgCenterMgr.PORT);
             dataPacket = new DatagramPacket(broadcastPacket, broadcastPacket.length, address, BROADCAST_PORT);
             isStartBroadcat = true;

@@ -19,6 +19,7 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import come.live.decodelib.MsgCenterMgr;
 import come.live.decodelib.VideoSizeChangeListener;
 import come.live.decodelib.utils.LogUtils;
+import come.live.microliveplayer.peer.discovering.DevicesBroadcast;
 
 public class MainActivity extends BaseActivity implements VideoSizeChangeListener {
 
@@ -31,6 +32,7 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         initView();
+        DevicesBroadcast.getInstance().start();
     }
 
     @Override
