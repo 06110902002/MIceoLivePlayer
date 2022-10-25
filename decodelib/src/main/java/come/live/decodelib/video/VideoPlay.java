@@ -44,9 +44,9 @@ public class VideoPlay {
     @RequiresApi(api = Build.VERSION_CODES.M)
     public boolean initMediaCodec(int width, int height, Surface surface){
         MediaFormat format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height);
-        format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, width * height);
-        format.setInteger(MediaFormat.KEY_MAX_HEIGHT, height);
-        format.setInteger(MediaFormat.KEY_MAX_WIDTH, width);
+//        format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, width * height);
+//        format.setInteger(MediaFormat.KEY_MAX_HEIGHT, height);
+//        format.setInteger(MediaFormat.KEY_MAX_WIDTH, width);
         //byte[] header_sps = {0, 0, 0, 1, 103, 66, -128, 31, -38, 2, -48, 40, 104, 6, -48, -95, 53};
         //byte[] header_pps = {0, 0 ,0, 1, 104, -50, 6, -30};
         ////横屏

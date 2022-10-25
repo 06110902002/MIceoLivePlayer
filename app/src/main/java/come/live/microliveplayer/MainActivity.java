@@ -8,10 +8,12 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.DisplayMetrics;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.WindowManager;
 import android.widget.RelativeLayout;
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
@@ -25,14 +27,31 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
 
     private SurfaceView surfaceView;
     private SurfaceHolder mSurfaceHolder;
+    private SurfaceView surfaceView2;
+    private SurfaceHolder mSurfaceHolder2;
     private MsgCenterMgr msgCenterMgr;
     private final int mWidth = 720;
     private final int mHeight = 1280;
+    private int screenWidth;
+    private int screenHeight;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         initView();
-        DevicesBroadcast.getInstance().start();
+        //DevicesBroadcast.getInstance().start();
+        DisplayMetrics displayMetrics = new DisplayMetrics();
+        WindowManager windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+        windowManager.getDefaultDisplay().getRealMetrics(displayMetrics);
+
+        WindowManager manager = getWindowManager();
+        DisplayMetrics outMetrics = new DisplayMetrics();
+        manager.getDefaultDisplay().getMetrics(outMetrics);
+
+        screenWidth = outMetrics.widthPixels;
+        screenHeight = outMetrics.heightPixels;
+        //LogUtils.v("217--------width = " + width + " height :" + height + " displayMetrics.densityDpi :" +displayMetrics.densityDpi);
+
     }
 
     @Override
@@ -48,10 +67,24 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
 
-                msgCenterMgr = new MsgCenterMgr();
-                msgCenterMgr.setVideoSizeChangeListener(MainActivity.this);
-                msgCenterMgr.setConfig(mWidth,mHeight,holder.getSurface());
-                msgCenterMgr.start();
+//                msgCenterMgr = new MsgCenterMgr();
+//                msgCenterMgr.setVideoSizeChangeListener(MainActivity.this);
+//                msgCenterMgr.setConfig(surfaceView.getWidth(),surfaceView.getHeight(),holder.getSurface());
+//                msgCenterMgr.start();
+
+                surfaceView.setOnTouchListener(new View.OnTouchListener() {
+                    @Override
+                    public boolean onTouch(View v, MotionEvent event) {
+                        return msgCenterMgr.touchevent(
+                                event,
+                                surfaceView.getWidth(),
+                                surfaceView.getHeight(),
+                                1280,
+                                1504);
+
+                    }
+                });
+
             }
 
             @Override
@@ -69,6 +102,72 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
             }
         });
 
+
+        surfaceView2 = findViewById(R.id.surfaceView2);
+        mSurfaceHolder2 = surfaceView2.getHolder();
+        mSurfaceHolder2.addCallback(new SurfaceHolder.Callback() {
+            @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
+            @Override
+            public void surfaceCreated(SurfaceHolder holder) {
+
+                surfaceView2.setOnTouchListener(new View.OnTouchListener() {
+                    @Override
+                    public boolean onTouch(View v, MotionEvent event) {
+
+                        return msgCenterMgr.touchevent2(
+                                event,
+                                surfaceView2.getWidth(),
+                                surfaceView2.getHeight(),
+                                1280,
+                                1504);
+
+                    }
+                });
+
+            }
+
+            @Override
+            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+                LogUtils.v("width:"+width+" height:"+height);
+            }
+
+            @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
+            @Override
+            public void surfaceDestroyed(SurfaceHolder holder) {
+                if(msgCenterMgr != null){
+                    msgCenterMgr.shutDown();
+                    msgCenterMgr = null;
+                }
+            }
+        });
+
+
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+
+                msgCenterMgr = new MsgCenterMgr();
+                msgCenterMgr.setVideoSizeChangeListener(MainActivity.this);
+                msgCenterMgr.setConfig(surfaceView.getWidth(),surfaceView.getHeight(),
+                        surfaceView.getHolder().getSurface(),surfaceView2.getHolder().getSurface());
+                msgCenterMgr.start();
+            }
+        },1000);
+
+        findViewById(R.id.btn_back1).setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                msgCenterMgr.sendKeyCode(4,1);
+            }
+        });
+        findViewById(R.id.btn_back2).setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                msgCenterMgr.sendKeyCode(4,2);
+            }
+        });
+
+
         findViewById(R.id.btn_switch).setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -79,7 +178,7 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
             }
         });
 
-        adjustScreenSize();
+        //adjustScreenSize();
     }
 
     @Override
@@ -190,5 +289,18 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
             return dm;
         }
         return null;
+    }
+    public static int getScreenWidth(Activity context) {
+        WindowManager manager = context.getWindowManager();
+        DisplayMetrics outMetrics = new DisplayMetrics();
+        manager.getDefaultDisplay().getMetrics(outMetrics);
+        return outMetrics.widthPixels;
+    }
+
+    public static int getScreenHeight(Activity context) {
+        WindowManager manager = context.getWindowManager();
+        DisplayMetrics outMetrics = new DisplayMetrics();
+        manager.getDefaultDisplay().getMetrics(outMetrics);
+        return outMetrics.heightPixels;
     }
 }

@@ -5,6 +5,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import android.view.Surface;
 import come.live.decodelib.audio.AudioPlay;
 import come.live.decodelib.model.LiveEntity;
+import come.live.decodelib.utils.ByteUtil;
 import come.live.decodelib.video.VideoPlay;
 
 /**
@@ -65,7 +66,7 @@ public class DecodeStreamMediaThread extends Thread{
                 LiveEntity liveEntity = liveEntitiesQueue.poll();
                 if (liveEntity != null) {
 
-                    if (liveEntity.getType() == LiveEntity.AUDIO) {
+                    if (ByteUtil.bytesToInt(liveEntity.getType()) == LiveEntity.AUDIO) {
                         audioPlay.playAudio(liveEntity.getContent(),0,liveEntity.getContent().length);
                     }else{
                         videoPlay.onFrame(liveEntity.getContent(),0,liveEntity.getContent().length);

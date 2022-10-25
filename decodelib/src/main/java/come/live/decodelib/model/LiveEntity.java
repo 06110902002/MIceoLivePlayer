@@ -40,6 +40,8 @@ public class LiveEntity implements Serializable {
      */
     public final static int RESOLUTION = 27;
 
+    public final static int DISPLAY_ID = 28;
+
 
     /**
      * 报文类型，用4个字节表示
@@ -47,26 +49,46 @@ public class LiveEntity implements Serializable {
      * 视频：1001
      * 普通报文：1002
      */
-    private int type;
+    private byte[] type;
 
+    /**
+     * surfaceView 显示Id
+     */
+    private byte[] surfaceViewIdx;
+
+    /**
+     * 报文长度，4个字节表示
+     */
+    private byte[] contentLength;
 
     /**
      * 报文内容
      */
     private byte[] content;
 
-    public LiveEntity(int type, byte[] content){
-        this.type = type;
-        this.content = content;
-    }
 
-
-    public int getType() {
+    public byte[] getType() {
         return type;
     }
 
-    public void setType(int type) {
+    public void setType(byte[] type) {
         this.type = type;
+    }
+
+    public byte[] getSurfaceViewIdx() {
+        return surfaceViewIdx;
+    }
+
+    public void setSurfaceViewIdx(byte[] surfaceViewIdx) {
+        this.surfaceViewIdx = surfaceViewIdx;
+    }
+
+    public byte[] getContentLength() {
+        return contentLength;
+    }
+
+    public void setContentLength(byte[] contentLength) {
+        this.contentLength = contentLength;
     }
 
 

@@ -6,15 +6,21 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import android.app.Activity;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
 import android.text.TextUtils;
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.SurfaceControl;
+import android.view.WindowManager;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 
@@ -59,6 +65,10 @@ public class MsgCenterMgr {
     private byte[] sps;
     private byte[] pps;
     private VideoPlay videoPlay;
+    private VideoPlay videoPlay2;
+    private Surface surface2;
+    private LinkedBlockingQueue<LiveEntity> waitSendQueue = new LinkedBlockingQueue<>();
+    private SendThread sendThread;
 
     public MsgCenterMgr(){
         mHandler = new ReconnectHandler();
@@ -89,6 +99,9 @@ public class MsgCenterMgr {
 
         videoPlay = new VideoPlay();
         videoPlay.initMediaCodec(width,height,surface);
+
+        videoPlay2 = new VideoPlay();
+        videoPlay2.initMediaCodec(width,height,surface2);
     }
 
     /**
@@ -107,6 +120,8 @@ public class MsgCenterMgr {
                 inputStream = socket.getInputStream();
                 outputStream = socket.getOutputStream();
                 if (socket.isConnected()) {
+                    sendThread = new SendThread();
+                    sendThread.start();
                     LogUtils.v("socket连接成功:"+socket.getInetAddress());
                     break;
                 }else{
@@ -126,7 +141,7 @@ public class MsgCenterMgr {
      * @param height   解码器输入画面高度
      * @param surface  解码h264之后渲染画面
      */
-    public void setConfig(int width,int height, Surface surface){
+    public void setConfig(int width,int height, Surface surface,Surface surface2){
         //测试单独解码视频
         //oriH264Queue = new LinkedBlockingQueue<>();
         //decodeH264Thread = new DecodeH264Thread(oriH264Queue,width,height,surface);
@@ -138,6 +153,7 @@ public class MsgCenterMgr {
         this.width = width;
         this.height = height;
         this.surface = surface;
+        this.surface2 = surface2;
 
         //mirrorContext = new MirrorContext(null,mHandler,false);
         //mirrorContext.setSurface(surface);
@@ -150,7 +166,7 @@ public class MsgCenterMgr {
     public void readMessage(){
         while(isRunning){
             try {
-                byte[] header = ReadMsgUtils.readBytesByLength(inputStream, 8);
+                byte[] header = ReadMsgUtils.readBytesByLength(inputStream, 12);
                 if (header == null || header.length == 0) {
                     Thread.sleep(10);
                     continue;
@@ -174,9 +190,14 @@ public class MsgCenterMgr {
                 System.arraycopy(header, 0, typeBuff, 0, 3);
                 int type = ByteUtil.bytesToInt(typeBuff);
 
+                //显示在哪个SurfaceView
+                byte[] surfaceViewIdxBytes = new byte[4];
+                System.arraycopy(header,4,surfaceViewIdxBytes,0,3);
+                int surfaceViewIdx = ByteUtil.bytesToInt(surfaceViewIdxBytes);
+
                 byte[] lengthByte = new byte[4];
                 //报文长度
-                System.arraycopy(header,4,lengthByte,0,3);
+                System.arraycopy(header,8,lengthByte,0,3);
                 int len = ByteUtil.bytesToInt(lengthByte);
 
                 byte[] content = ReadMsgUtils.readBytesByLength(inputStream, len);
@@ -190,9 +211,10 @@ public class MsgCenterMgr {
                         videoSizeChangeListener.onVideoSizeChange(Integer.parseInt(resolutions[0]),Integer.parseInt(resolutions[1]));
                     }
 
-                } else if(type == 29){
+                } else if(type == 29) {
                     //sendLiveDate(typeBuff,lengthByte,content);
-                } /*else if(type == LiveEntity.SPS) {
+                }
+                /*else if(type == LiveEntity.SPS) {
                     sps = content;
                     mirrorContext.setupCodec(this.width,this.height,content,System.currentTimeMillis());
 
@@ -210,7 +232,12 @@ public class MsgCenterMgr {
                     //方法二
                     //videoPlay.putH264InputBuffer(content);
                     //方法三 使用同步方式解码渲染 264
-                    videoPlay.addH264Packer(content);
+                    if (surfaceViewIdx == 1) {
+                        videoPlay.addH264Packer(content);
+                    } else {
+                        videoPlay2.addH264Packer(content);
+                    }
+
 
                 }
 
@@ -232,6 +259,7 @@ public class MsgCenterMgr {
 
     private class ReconnectHandler extends Handler {
 
+        @RequiresApi(api = Build.VERSION_CODES.M)
         @Override
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);
@@ -320,6 +348,96 @@ public class MsgCenterMgr {
                 outputStream.write(content, 0, content.length);
                 outputStream.flush();
             } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public boolean touchevent(MotionEvent touch_event,
+                              int displayW, int displayH,
+                              int screenWidth, int screenHeight) {
+
+        if (touch_event.getAction() == MotionEvent.ACTION_DOWN) {
+            String point = (int) touch_event.getX() * screenWidth / displayW + ":" + (int) touch_event.getY() * screenHeight / displayH;
+            LogUtils.v("point = " + point);
+            byte[] pointByte = point.getBytes(StandardCharsets.UTF_8);
+            byte[] type = ByteUtil.int2Bytes(1);
+            byte[] length = ByteUtil.int2Bytes(pointByte.length);
+            LiveEntity liveEntity = new LiveEntity();
+            liveEntity.setType(type);
+            liveEntity.setContentLength(length);
+            liveEntity.setContent(pointByte);
+            try {
+                waitSendQueue.put(liveEntity);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        return true;
+    }
+
+    public boolean touchevent2(MotionEvent touch_event,
+                              int displayW, int displayH,
+                              int screenWidth, int screenHeight) {
+
+        if (touch_event.getAction() == MotionEvent.ACTION_DOWN && waitSendQueue != null) {
+            String point = (int) touch_event.getX() * screenWidth / displayW + ":" + (int) touch_event.getY() * screenHeight / displayH;
+            LogUtils.v("point = " + point + " x = " + touch_event.getX());
+            byte[] pointByte = point.getBytes(StandardCharsets.UTF_8);
+            byte[] type = ByteUtil.int2Bytes(2);
+            byte[] length = ByteUtil.int2Bytes(pointByte.length);
+            LiveEntity liveEntity = new LiveEntity();
+            liveEntity.setType(type);
+            liveEntity.setContentLength(length);
+            liveEntity.setContent(pointByte);
+            try {
+                waitSendQueue.put(liveEntity);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        return true;
+    }
+
+    public void sendKeyCode(int keyCode,int surfaceViewIdx) {
+        byte[] keyCodeByte = (keyCode+"").getBytes(StandardCharsets.UTF_8);
+        byte[] type = ByteUtil.int2Bytes(surfaceViewIdx);
+        byte[] length = ByteUtil.int2Bytes(keyCodeByte.length);
+        LiveEntity liveEntity = new LiveEntity();
+        liveEntity.setType(type);
+        liveEntity.setContentLength(length);
+        liveEntity.setContent(keyCodeByte);
+        try {
+            waitSendQueue.put(liveEntity);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    private class SendThread extends Thread {
+
+
+        @Override
+        public void run() {
+            super.run();
+            send();
+        }
+    }
+
+    private void send() {
+        while (isConnected()) {
+            while (waitSendQueue != null && !waitSendQueue.isEmpty()) {
+                LiveEntity liveEntity = waitSendQueue.poll();
+                LogUtils.v("52------开始发送消息.....surfaceIdx " + ByteUtil.bytesToInt(liveEntity.getType()));
+                if (liveEntity == null) {
+                    continue;
+                }
+                sendLiveDate(liveEntity.getType(), liveEntity.getContentLength(), liveEntity.getContent());
+            }
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
