@@ -413,6 +413,89 @@ public class MsgCenterMgr {
         return true;
     }
 
+    float downX = 0;
+    float downY = 0;
+    float moveX = 0;
+    float moveY = 0;
+    long currentMS = 0;
+    public void sendEvent(MotionEvent event,int displayW, int displayH,
+                          int screenWidth, int screenHeight,int surfaceViewIdx) {
+
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                downX = event.getX();
+                downY = event.getY();
+                moveX = 0f;
+                moveY = 0f;
+                currentMS = System.currentTimeMillis();
+                break;
+            case MotionEvent.ACTION_MOVE:
+//                moveX += Math.abs(event.getX() - downX);
+//                moveY += Math.abs(event.getY() - downY);
+//                downX = event.getX();
+//                downY = event.getY();
+//                String fromXtoX = (int) downX * screenWidth / displayW + ":" + (int) event.getX() * screenWidth / displayW;
+//                String fromYtoY = (int) downY * screenHeight / displayH + ":" + (int) event.getY() * screenHeight / displayH;
+//                String point = fromXtoX + "/" + fromYtoY;
+//                LogUtils.v("fromXtoX = " + fromXtoX + " fromYtoY = " + fromYtoY);
+//                byte[] pointByte = point.getBytes(StandardCharsets.UTF_8);
+//                byte[] type = ByteUtil.int2Bytes(surfaceViewIdx);
+//                byte[] length = ByteUtil.int2Bytes(pointByte.length);
+//                LiveEntity liveEntity = new LiveEntity();
+//                liveEntity.setType(type);
+//                liveEntity.setContentLength(length);
+//                liveEntity.setContent(pointByte);
+//                try {
+//                    waitSendQueue.put(liveEntity);
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                }
+                break;
+            case MotionEvent.ACTION_UP:
+                moveX += Math.abs(event.getX() - downX);
+                moveY += Math.abs(event.getY() - downY);
+                long moveTime = System.currentTimeMillis() - currentMS;
+                //发送滑动事件
+                if (moveTime > 200 && (moveX > 50 || moveY > 50)) {
+                    String fromXtoX = (int) downX * screenWidth / displayW + ":" + (int) event.getX() * screenWidth / displayW;
+                    String fromYtoY = (int) downY * screenHeight / displayH + ":" + (int) event.getY() * screenHeight / displayH;
+                    String point = fromXtoX + "/" + fromYtoY;
+                    LogUtils.v("fromXtoX = " + fromXtoX + " fromYtoY = " + fromYtoY);
+                    byte[] pointByte = point.getBytes(StandardCharsets.UTF_8);
+                    byte[] type = ByteUtil.int2Bytes(surfaceViewIdx);
+                    byte[] length = ByteUtil.int2Bytes(pointByte.length);
+                    LiveEntity liveEntity = new LiveEntity();
+                    liveEntity.setType(type);
+                    liveEntity.setContentLength(length);
+                    liveEntity.setContent(pointByte);
+                    try {
+                        waitSendQueue.put(liveEntity);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                } else { //发送点击事件
+                    String point2 = (int) event.getX() * screenWidth / displayW + ":" + (int) event.getY() * screenHeight / displayH;
+                    LogUtils.v("point = " + point2 + " x = " + event.getX());
+                    byte[] pointByte2 = point2.getBytes(StandardCharsets.UTF_8);
+                    byte[] type2 = ByteUtil.int2Bytes(surfaceViewIdx);
+                    byte[] length2 = ByteUtil.int2Bytes(pointByte2.length);
+                    LiveEntity liveEntity2 = new LiveEntity();
+                    liveEntity2.setType(type2);
+                    liveEntity2.setContentLength(length2);
+                    liveEntity2.setContent(pointByte2);
+                    try {
+                        waitSendQueue.put(liveEntity2);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                downX = event.getX();
+                downY = event.getY();
+                break;
+        }
+
+    }
+
     public void sendKeyCode(int keyCode,int surfaceViewIdx) {
         byte[] keyCodeByte = (keyCode+"").getBytes(StandardCharsets.UTF_8);
         byte[] type = ByteUtil.int2Bytes(surfaceViewIdx);

@@ -75,12 +75,14 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
                 surfaceView.setOnTouchListener(new View.OnTouchListener() {
                     @Override
                     public boolean onTouch(View v, MotionEvent event) {
-                        return msgCenterMgr.touchevent(
-                                event,
-                                surfaceView.getWidth(),
-                                surfaceView.getHeight(),
-                                1280,
-                                1504);
+//                        return msgCenterMgr.touchevent(
+//                                event,
+//                                surfaceView.getWidth(),
+//                                surfaceView.getHeight(),
+//                                1280,
+//                                1504);
+                        msgCenterMgr.sendEvent(event,surfaceView.getWidth(), surfaceView.getHeight(), 1280, 1504,1);
+                        return true;
 
                     }
                 });
@@ -114,12 +116,14 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
                     @Override
                     public boolean onTouch(View v, MotionEvent event) {
 
-                        return msgCenterMgr.touchevent2(
-                                event,
-                                surfaceView2.getWidth(),
-                                surfaceView2.getHeight(),
-                                1280,
-                                1504);
+//                        return msgCenterMgr.touchevent2(
+//                                event,
+//                                surfaceView2.getWidth(),
+//                                surfaceView2.getHeight(),
+//                                1280,
+//                                1504);
+                        msgCenterMgr.sendEvent(event,surfaceView.getWidth(), surfaceView.getHeight(), 1280, 1504,2);
+                        return true;
 
                     }
                 });
