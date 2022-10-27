@@ -114,7 +114,7 @@ public class MsgCenterMgr {
             serverSocket.setReuseAddress(true);
             InetSocketAddress socketAddress = new InetSocketAddress(PORT);
             serverSocket.bind(socketAddress);
-            serverSocket.setSoTimeout(60 * 1000);
+            serverSocket.setSoTimeout(600 * 1000);
             while (serverSocket != null){
                 socket = serverSocket.accept();
                 inputStream = socket.getInputStream();
@@ -130,8 +130,10 @@ public class MsgCenterMgr {
             }
             isRunning = true;
         } catch (IOException | InterruptedException e) {
+            LogUtils.v("监听连接超时，系统将在3秒后重新启动，具体异常信息如下:");
             e.printStackTrace();
             isRunning = false;
+            mHandler.sendEmptyMessageDelayed(RECONNECT,3000);
         }
     }
 
@@ -265,6 +267,7 @@ public class MsgCenterMgr {
             super.handleMessage(msg);
             switch (msg.what){
                 case RECONNECT:
+                    shutDown();
                     start();
                     break;
                 default:
@@ -314,6 +317,17 @@ public class MsgCenterMgr {
 
         if(videoPlay != null){
             videoPlay.release();
+            videoPlay = null;
+        }
+        if(videoPlay2 != null){
+            videoPlay2.release();
+            videoPlay2 = null;
+        }
+        if (waitSendQueue != null) {
+            waitSendQueue.clear();
+        }
+        if (sendThread != null) {
+            sendThread = null;
         }
 
     }
