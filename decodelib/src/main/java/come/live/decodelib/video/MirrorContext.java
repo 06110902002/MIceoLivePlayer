@@ -178,7 +178,7 @@ public class MirrorContext {
         LogUtils.v("B mlistener:" + mListener);
 
         if(mListener != null){
-            mListener.onVideoSizeChange(width,height);
+            mListener.onVideoSizeChange(null);
         }
 
         checkSetting_l();

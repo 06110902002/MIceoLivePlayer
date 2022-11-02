@@ -7,6 +7,8 @@ import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Message;
+import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -14,13 +16,25 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.RelativeLayout;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.constraintlayout.widget.ConstraintLayout;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.nio.charset.StandardCharsets;
+
 import come.live.decodelib.MsgCenterMgr;
 import come.live.decodelib.VideoSizeChangeListener;
+import come.live.decodelib.model.LiveEntity;
+import come.live.decodelib.utils.ByteUtil;
 import come.live.decodelib.utils.LogUtils;
+import come.live.decodelib.utils.UIUtils;
 import come.live.microliveplayer.peer.discovering.DevicesBroadcast;
 
 public class MainActivity extends BaseActivity implements VideoSizeChangeListener {
@@ -34,12 +48,17 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
     private final int mHeight = 1280;
     private int screenWidth;
     private int screenHeight;
+    private final int CONFIG_MEDIACODEC = 1102;
+    private MainHandler mainHandler;
+    private RelativeLayout layout2;
+    private Button btn1;
+    private Button btn2;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         initView();
-        //DevicesBroadcast.getInstance().start();
+        mainHandler = new MainHandler();
         DisplayMetrics displayMetrics = new DisplayMetrics();
         WindowManager windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
         windowManager.getDefaultDisplay().getRealMetrics(displayMetrics);
@@ -50,8 +69,7 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
 
         screenWidth = outMetrics.widthPixels;
         screenHeight = outMetrics.heightPixels;
-        //LogUtils.v("217--------width = " + width + " height :" + height + " displayMetrics.densityDpi :" +displayMetrics.densityDpi);
-
+        //LogUtils.v("217--------width = " + screenWidth + " height :" + screenHeight + " displayMetrics.densityDpi :" +displayMetrics.densityDpi);
     }
 
     @Override
@@ -81,7 +99,7 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
 //                                surfaceView.getHeight(),
 //                                1280,
 //                                1504);
-                        msgCenterMgr.sendEvent(event,surfaceView.getWidth(), surfaceView.getHeight(), 1280, 1504,1);
+                        msgCenterMgr.sendEvent(event,surfaceView.getWidth(), surfaceView.getHeight(), surfaceView.getWidth(), surfaceView.getHeight(),1);
                         return true;
 
                     }
@@ -104,7 +122,7 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
             }
         });
 
-
+        layout2 = findViewById(R.id.layout2);
         surfaceView2 = findViewById(R.id.surfaceView2);
         mSurfaceHolder2 = surfaceView2.getHolder();
         mSurfaceHolder2.addCallback(new SurfaceHolder.Callback() {
@@ -122,7 +140,10 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
 //                                surfaceView2.getHeight(),
 //                                1280,
 //                                1504);
-                        msgCenterMgr.sendEvent(event,surfaceView.getWidth(), surfaceView.getHeight(), 1280, 1504,2);
+                        LogUtils.v("217--------width = " + screenWidth + " height :" + screenHeight +
+                                " surfaceView.getWidth() :" +surfaceView.getWidth() + " surfaceView.getHeight():" + surfaceView.getHeight());
+
+                        msgCenterMgr.sendEvent(event,surfaceView.getWidth(), surfaceView.getHeight(), surfaceView.getWidth(), surfaceView.getHeight(),2);
                         return true;
 
                     }
@@ -153,18 +174,46 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
                 msgCenterMgr = new MsgCenterMgr();
                 msgCenterMgr.setVideoSizeChangeListener(MainActivity.this);
                 msgCenterMgr.setConfig(surfaceView.getWidth(),surfaceView.getHeight(),
-                        surfaceView.getHolder().getSurface(),surfaceView2.getHolder().getSurface());
+                        surfaceView.getHolder().getSurface(),
+                        surfaceView2.getHolder().getSurface());
+                msgCenterMgr.setConnectListener(new MsgCenterMgr.ConnectListener() {
+                    @Override
+                    public void onStatus(int code, final String msg) {
+                        if (code == MsgCenterMgr.CONNECT_SUCCESS) {
+
+//                            LiveEntity liveEntity = new LiveEntity();
+//                            liveEntity.setType(ByteUtil.int2Bytes(100));
+//                            int width = surfaceView.getWidth();
+//                            int height = surfaceView.getHeight();
+//                            String config = width + ":" + height;
+//                            LogUtils.v("传给 客户端  width = " + width + " height :" + height);
+//                            byte[] content = config.getBytes(StandardCharsets.UTF_8);
+//                            liveEntity.setContentLength(ByteUtil.int2Bytes(content.length));
+//                            liveEntity.setContent(content);
+                            //msgCenterMgr.sendMsg(liveEntity);
+                        } else if (code == MsgCenterMgr.DISCONNECTED) {
+                            MainActivity.this.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Toast.makeText(MainActivity.this,msg,Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+                    }
+                });
                 msgCenterMgr.start();
             }
         },1000);
 
-        findViewById(R.id.btn_back1).setOnClickListener(new OnClickListener() {
+        btn1 = findViewById(R.id.btn_back1);
+        btn1.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
                 msgCenterMgr.sendKeyCode(4,1);
             }
         });
-        findViewById(R.id.btn_back2).setOnClickListener(new OnClickListener() {
+        btn2 = findViewById(R.id.btn_back2);
+        btn2.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
                 msgCenterMgr.sendKeyCode(4,2);
@@ -172,17 +221,6 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
         });
 
 
-        findViewById(R.id.btn_switch).setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                LogUtils.v("开始切换屏幕");
-                int videoWidth = 1280;
-                int videoHeight = 720;
-                changeVideoSize(videoWidth,videoHeight);
-            }
-        });
-
-        //adjustScreenSize();
     }
 
     @Override
@@ -199,90 +237,74 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
         }
     }
 
-    private void adjustScreenSize() {
+    private class MainHandler extends Handler {
 
-        DisplayMetrics dm = getScreenInfo(this);
-        if (dm != null) {
-            int widthPixels = dm.widthPixels;
-            int heightPixels = dm.heightPixels;
-            if (widthPixels > heightPixels) {
-                LogUtils.v("当前屏幕为横屏模式,因为发送端默认为竖屏模式，需要调整");
-                changeVideoSize(heightPixels,widthPixels);
-            }else {
-                changeVideoSize(widthPixels,heightPixels);
+        @RequiresApi(api = Build.VERSION_CODES.M)
+        @Override
+        public void handleMessage(@NonNull Message msg) {
+            super.handleMessage(msg);
+            switch (msg.what) {
+                case CONFIG_MEDIACODEC:
+                    if (msgCenterMgr != null) {
+                        int paegCount = msg.arg1;
+                        msgCenterMgr.startDecodec(paegCount);
+                    }
+                    break;
             }
         }
-
-    }
-
-
-    /**
-     * 修改预览View的大小,以用来适配屏幕
-     */
-    public void changeVideoSize(int videoWidth, int videoHeight) {
-        int deviceWidth = getResources().getDisplayMetrics().widthPixels;
-        int deviceHeight = getResources().getDisplayMetrics().heightPixels;
-        float devicePercent = 0;
-        LogUtils.v("切换尺寸");
-        //下面进行求屏幕比例,因为横竖屏会改变屏幕宽度值,所以为了保持更小的值除更大的值.
-        if (getResources().getConfiguration().orientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) { //竖屏
-            devicePercent = (float) deviceWidth / (float) deviceHeight; //竖屏状态下宽度小与高度,求比
-        }else { //横屏
-            devicePercent = (float) deviceHeight / (float) deviceWidth; //横屏状态下高度小与宽度,求比
-        }
-
-        if (videoWidth > videoHeight){ //判断视频的宽大于高,那么我们就优先满足视频的宽度铺满屏幕的宽度,然后在按比例求出合适比例的高度
-            videoWidth = deviceWidth;//将视频宽度等于设备宽度,让视频的宽铺满屏幕
-            videoHeight = (int)(deviceWidth*devicePercent);//设置了视频宽度后,在按比例算出视频高度
-
-        }else {  //判断视频的高大于宽,那么我们就优先满足视频的高度铺满屏幕的高度,然后在按比例求出合适比例的宽度
-            if (getResources().getConfiguration().orientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {//竖屏
-                videoHeight = deviceHeight;
-                /**
-                 * 接受在宽度的轻微拉伸来满足视频铺满屏幕的优化
-                 */
-                float videoPercent = (float) videoWidth / (float) videoHeight;//求视频比例 注意是宽除高 与 上面的devicePercent 保持一致
-                float differenceValue = Math.abs(videoPercent - devicePercent);//相减求绝对值
-                if (differenceValue < 0.3){ //如果小于0.3比例,那么就放弃按比例计算宽度直接使用屏幕宽度
-                    videoWidth = deviceWidth;
-                }else {
-                    videoWidth = (int)(videoWidth/devicePercent);//注意这里是用视频宽度来除
-                }
-
-            }else { //横屏
-                videoHeight = deviceHeight;
-                videoWidth = (int)(deviceHeight*devicePercent);
-
-            }
-
-        }
-
-        RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams) surfaceView.getLayoutParams();
-        layoutParams.width = videoWidth;
-        layoutParams.height = videoHeight;
-        surfaceView.setLayoutParams(layoutParams);
-
     }
 
     @Override
-    public void onVideoSizeChange(final int width, final int height) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
+    public void onVideoSizeChange(String jsonString) {
+        if (!TextUtils.isEmpty(jsonString)) {
+            JSONObject jsonObject = null;
+            try {
+                jsonObject = new JSONObject(jsonString);
+                int width = jsonObject.optInt("width");
+                int height = jsonObject.optInt("height");
+                final int pageCount = jsonObject.optInt("page_count");
+                boolean isPad = jsonObject.optBoolean("isPad");
 
-                DisplayMetrics dm = getScreenInfo(MainActivity.this);
-                if (dm != null) {
-                    int widthPixels = dm.widthPixels;
-                    int heightPixels = dm.heightPixels;
-                    if (width > height) {
-                        LogUtils.v("当前屏幕为横屏模式,因为发送端默认为竖屏模式，需要调整");
-                        changeVideoSize(widthPixels,heightPixels);
-                    }else {
-                        changeVideoSize(heightPixels,widthPixels);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams) surfaceView.getLayoutParams();
+                        layoutParams.width = pageCount != 1 ? dp2px(MainActivity.this,360) : RelativeLayout.LayoutParams.MATCH_PARENT;
+                        layoutParams.height = pageCount != 1 ? dp2px(MainActivity.this,640) : RelativeLayout.LayoutParams.MATCH_PARENT;
+                        surfaceView.setLayoutParams(layoutParams);
+                        btn1.setVisibility(View.VISIBLE);
+                        if (pageCount == 1) {
+                            layout2.setVisibility(View.GONE);
+                        } else {
+                            layout2.setVisibility(View.VISIBLE);
+                            btn2.setVisibility(View.VISIBLE);
+                            surfaceView2.setLayoutParams(layoutParams);
+                        }
+
+                        Message msg = mainHandler.obtainMessage();
+                        msg.what = CONFIG_MEDIACODEC;
+                        msg.arg1 = pageCount;
+                        mainHandler.sendMessage(msg);
+
+
+                        //回传客户端已经调整好了，可以启动编码
+                        LiveEntity liveEntity = new LiveEntity();
+                        liveEntity.setType(ByteUtil.int2Bytes(LiveEntity.STRAT_CODEC));
+                        int width = surfaceView.getWidth();
+                        int height = surfaceView.getHeight();
+                        String config = width + ":" + height;
+                        LogUtils.v("回传客户端已经调整好了，可以启动编码  width = " + width + " height :" + height);
+                        byte[] content = config.getBytes(StandardCharsets.UTF_8);
+                        liveEntity.setContentLength(ByteUtil.int2Bytes(content.length));
+                        liveEntity.setContent(content);
+                        msgCenterMgr.sendMsg(liveEntity);
                     }
-                }
+                });
+            } catch (JSONException e) {
+                e.printStackTrace();
             }
-        });
+        }
+
     }
 
     public DisplayMetrics getScreenInfo(Context context) {
@@ -306,5 +328,14 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
         DisplayMetrics outMetrics = new DisplayMetrics();
         manager.getDefaultDisplay().getMetrics(outMetrics);
         return outMetrics.heightPixels;
+    }
+    public static int dp2px(Context context, float dpValue) {
+        final float scale = context.getResources().getDisplayMetrics().density;
+        return (int) (dpValue * scale + 0.5f);
+    }
+
+    public static int px2dp(Context context, float pxValue) {
+        final float scale = context.getResources().getDisplayMetrics().density;
+        return (int) (pxValue / scale + 0.5f);
     }
 }

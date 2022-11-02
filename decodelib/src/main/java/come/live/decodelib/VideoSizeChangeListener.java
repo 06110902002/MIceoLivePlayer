@@ -1,5 +1,7 @@
 package come.live.decodelib;
 
+import org.json.JSONObject;
+
 /**
  * author         hengyang.lxb
  * date           2021/01/02
@@ -8,5 +10,5 @@ package come.live.decodelib;
  */
 public interface VideoSizeChangeListener {
 
-    void onVideoSizeChange(int width,int height);
+    void onVideoSizeChange(String jsonString);
 }

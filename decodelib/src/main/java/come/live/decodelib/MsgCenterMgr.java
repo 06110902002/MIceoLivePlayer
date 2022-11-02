@@ -24,6 +24,9 @@ import android.view.WindowManager;
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import come.live.decodelib.model.LiveEntity;
 import come.live.decodelib.model.LiveHead;
 import come.live.decodelib.utils.ByteUtil;
@@ -47,6 +50,8 @@ public class MsgCenterMgr {
     private final int RECONNECT = 23;
     private ReconnectHandler mHandler;
     public static final int PORT = 12580;
+    public static final int CONNECT_SUCCESS  = 100;
+    public static final int DISCONNECTED  = 101;
     private ServerSocket serverSocket;
     private Socket socket;
     private InputStream inputStream;
@@ -69,6 +74,7 @@ public class MsgCenterMgr {
     private Surface surface2;
     private LinkedBlockingQueue<LiveEntity> waitSendQueue = new LinkedBlockingQueue<>();
     private SendThread sendThread;
+    private int pageCount = 0;
 
     public MsgCenterMgr(){
         mHandler = new ReconnectHandler();
@@ -76,6 +82,10 @@ public class MsgCenterMgr {
 
     public void setVideoSizeChangeListener(VideoSizeChangeListener listener){
         this.videoSizeChangeListener = listener;
+    }
+    private ConnectListener connectListener;
+    public void setConnectListener(ConnectListener listener) {
+        this.connectListener = listener;
     }
     @RequiresApi(api = Build.VERSION_CODES.M)
     public void start(){
@@ -97,11 +107,22 @@ public class MsgCenterMgr {
         //decodeStreamMediaThread.initVideoMediaCodec(width,height,surface);
         //decodeStreamMediaThread.start();
 
+//        videoPlay = new VideoPlay();
+//        videoPlay.initMediaCodec(width,height,surface);
+//        if (pageCount > 1) {
+//            videoPlay2 = new VideoPlay();
+//            videoPlay2.initMediaCodec(width,height,surface2);
+//        }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    public void startDecodec(int pageCount) {
         videoPlay = new VideoPlay();
         videoPlay.initMediaCodec(width,height,surface);
-
-        videoPlay2 = new VideoPlay();
-        videoPlay2.initMediaCodec(width,height,surface2);
+        if (pageCount > 1) {
+            videoPlay2 = new VideoPlay();
+            videoPlay2.initMediaCodec(width,height,surface2);
+        }
     }
 
     /**
@@ -120,6 +141,9 @@ public class MsgCenterMgr {
                 inputStream = socket.getInputStream();
                 outputStream = socket.getOutputStream();
                 if (socket.isConnected()) {
+                    if (connectListener != null) {
+                        connectListener.onStatus(CONNECT_SUCCESS,"Success");
+                    }
                     sendThread = new SendThread();
                     sendThread.start();
                     LogUtils.v("socket连接成功:"+socket.getInetAddress());
@@ -205,50 +229,34 @@ public class MsgCenterMgr {
                 byte[] content = ReadMsgUtils.readBytesByLength(inputStream, len);
 
                 if(type == LiveEntity.RESOLUTION){
-
                     String tmp = ByteUtil.bytes2String(content);
                     LogUtils.v("分辨率："+tmp);
                     if (videoSizeChangeListener != null && !TextUtils.isEmpty(tmp)){
-                        String[] resolutions = tmp.split(":");
-                        videoSizeChangeListener.onVideoSizeChange(Integer.parseInt(resolutions[0]),Integer.parseInt(resolutions[1]));
+                        videoSizeChangeListener.onVideoSizeChange(tmp);
                     }
-
-                } else if(type == 29) {
-                    //sendLiveDate(typeBuff,lengthByte,content);
                 }
-                /*else if(type == LiveEntity.SPS) {
-                    sps = content;
-                    mirrorContext.setupCodec(this.width,this.height,content,System.currentTimeMillis());
-
-                }else if (type == LiveEntity.PPS) {
-                    pps = content;
-                    byte[] newBuf = new byte[sps.length + pps.length];
-                    System.arraycopy(sps, 0, newBuf, 0, sps.length);
-                    System.arraycopy(pps, 0, newBuf, sps.length, pps.length);
-                    mirrorContext.setupCodec(this.width,this.height,newBuf,System.currentTimeMillis());
-                }*/
                 else {
-                    //LiveEntity liveEntity = new LiveEntity(type,content);
-                    //streamQueue.put(liveEntity);
-                   // mirrorContext.writeData(ByteUtil.byte2ByteBuffer(content),System.currentTimeMillis());
-                    //方法二
-                    //videoPlay.putH264InputBuffer(content);
-                    //方法三 使用同步方式解码渲染 264
                     if (surfaceViewIdx == 1) {
-                        videoPlay.addH264Packer(content);
+                        if (videoPlay != null) {
+                            videoPlay.addH264Packer(content);
+                        }
+
                     } else {
-                        videoPlay2.addH264Packer(content);
+                        if (videoPlay2 != null) {
+                            videoPlay2.addH264Packer(content);
+                        }
                     }
-
-
                 }
 
 
             } catch (IOException e) {
                 LogUtils.v("读取网络数据发生异常，请检查客户端是否存活，网络是否异常，系统将在3秒后重新启动，具体异常信息如下:");
                 e.printStackTrace();
+                if (connectListener != null) {
+                    connectListener.onStatus(DISCONNECTED,"连接断开");
+                }
                 shutDown();
-                mHandler.sendEmptyMessageDelayed(RECONNECT,3000);
+                mHandler.sendEmptyMessage(RECONNECT);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -510,6 +518,15 @@ public class MsgCenterMgr {
             e.printStackTrace();
         }
     }
+    public void sendMsg(LiveEntity liveEntity) {
+        if (liveEntity != null && waitSendQueue != null) {
+            try {
+                waitSendQueue.put(liveEntity);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
 
     private class SendThread extends Thread {
@@ -538,5 +555,9 @@ public class MsgCenterMgr {
                 e.printStackTrace();
             }
         }
+    }
+
+    public interface ConnectListener {
+        void onStatus(int code,String msg);
     }
 }

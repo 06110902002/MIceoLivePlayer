@@ -42,6 +42,8 @@ public class LiveEntity implements Serializable {
 
     public final static int DISPLAY_ID = 28;
 
+    public final static int STRAT_CODEC = 29;
+
 
     /**
      * 报文类型，用4个字节表示
