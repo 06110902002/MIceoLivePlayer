@@ -3,7 +3,11 @@
   <component name="DesignSurface">
     <option name="filePathToZoomLevelMap">
       <map>
+        <entry key="app/src/main/res/drawable-v24/app_layout_conner.xml" value="0.175" />
         <entry key="app/src/main/res/layout/activity_main.xml" value="0.22056159420289856" />
+        <entry key="app/src/main/res/layout/layout_app_item.xml" value="0.22056159420289856" />
+        <entry key="app/src/main/res/layout/layout_middle_app_page.xml" value="0.2916666666666667" />
+        <entry key="app/src/main/res/layout/layout_middle_whole_page.xml" value="0.22056159420289856" />
       </map>
     </option>
   </component>

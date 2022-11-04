@@ -44,6 +44,12 @@ public class LiveEntity implements Serializable {
 
     public final static int STRAT_CODEC = 29;
 
+    public final static int LAUNCHER_DATA = 30;
+
+    public final static int BACK_TO_PAGE_HOME = 31;
+
+    public final static int STOP_CODEC = 32;
+
 
     /**
      * 报文类型，用4个字节表示

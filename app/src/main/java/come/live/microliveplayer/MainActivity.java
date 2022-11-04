@@ -1,9 +1,11 @@
 package come.live.microliveplayer;
 
-import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.pm.ActivityInfo;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.Configuration;
+import android.graphics.PixelFormat;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -17,43 +19,58 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
-import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import org.json.JSONException;
-import org.json.JSONObject;
+import com.google.gson.Gson;
 
-import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import come.live.decodelib.MsgCenterMgr;
-import come.live.decodelib.VideoSizeChangeListener;
+import come.live.decodelib.DataParseListener;
 import come.live.decodelib.model.LiveEntity;
-import come.live.decodelib.utils.ByteUtil;
 import come.live.decodelib.utils.LogUtils;
 import come.live.decodelib.utils.UIUtils;
-import come.live.microliveplayer.peer.discovering.DevicesBroadcast;
+import come.live.microliveplayer.config.Constants;
+import come.live.microliveplayer.list.AppAdapter;
+import come.live.microliveplayer.list.AppPageAdapter;
+import come.live.microliveplayer.list.VerticalSpaceItemDecoration;
+import come.live.microliveplayer.list.model.AppItemInfo;
+import come.live.microliveplayer.list.model.AppPageItem;
+import come.live.microliveplayer.sdp.AppItemSdp;
 
-public class MainActivity extends BaseActivity implements VideoSizeChangeListener {
+public class MainActivity extends BaseActivity implements DataParseListener {
 
     private SurfaceView surfaceView;
     private SurfaceHolder mSurfaceHolder;
     private SurfaceView surfaceView2;
     private SurfaceHolder mSurfaceHolder2;
-    private MsgCenterMgr msgCenterMgr;
     private final int mWidth = 720;
     private final int mHeight = 1280;
     private int screenWidth;
     private int screenHeight;
     private final int CONFIG_MEDIACODEC = 1102;
+    private final int UPDATE_SURFACE = 1103;
     private MainHandler mainHandler;
     private RelativeLayout layout2;
+    private RelativeLayout layout1;
     private Button btn1;
     private Button btn2;
+    private ImageView imgTest;
+    protected RecyclerView mRightMenuList;
+    protected RecyclerView mAppPageList;
+    protected AppAdapter rightMenuAdapter;
+    protected AppPageAdapter appPageListAdapter;
+    private  int pageCount = 1;
+    private MainBroadcast mReceiver;
 
+    @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -67,6 +84,10 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
         DisplayMetrics outMetrics = new DisplayMetrics();
         manager.getDefaultDisplay().getMetrics(outMetrics);
 
+        mReceiver = new MainBroadcast();
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(Constants.PAGE_IDX_ACTION);
+        registerReceiver(mReceiver,intentFilter);
         screenWidth = outMetrics.widthPixels;
         screenHeight = outMetrics.heightPixels;
         //LogUtils.v("217--------width = " + screenWidth + " height :" + screenHeight + " displayMetrics.densityDpi :" +displayMetrics.densityDpi);
@@ -84,22 +105,10 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
             @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
-
-//                msgCenterMgr = new MsgCenterMgr();
-//                msgCenterMgr.setVideoSizeChangeListener(MainActivity.this);
-//                msgCenterMgr.setConfig(surfaceView.getWidth(),surfaceView.getHeight(),holder.getSurface());
-//                msgCenterMgr.start();
-
                 surfaceView.setOnTouchListener(new View.OnTouchListener() {
                     @Override
                     public boolean onTouch(View v, MotionEvent event) {
-//                        return msgCenterMgr.touchevent(
-//                                event,
-//                                surfaceView.getWidth(),
-//                                surfaceView.getHeight(),
-//                                1280,
-//                                1504);
-                        msgCenterMgr.sendEvent(event,surfaceView.getWidth(), surfaceView.getHeight(), surfaceView.getWidth(), surfaceView.getHeight(),1);
+                        MsgCenterMgr.getInstance().sendEvent(event,surfaceView.getWidth(), surfaceView.getHeight(), surfaceView.getWidth(), surfaceView.getHeight(),1);
                         return true;
 
                     }
@@ -115,14 +124,11 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
             @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
             @Override
             public void surfaceDestroyed(SurfaceHolder holder) {
-                if(msgCenterMgr != null){
-                    msgCenterMgr.shutDown();
-                    msgCenterMgr = null;
-                }
             }
         });
 
         layout2 = findViewById(R.id.layout2);
+        layout1 = findViewById(R.id.layout1);
         surfaceView2 = findViewById(R.id.surfaceView2);
         mSurfaceHolder2 = surfaceView2.getHolder();
         mSurfaceHolder2.addCallback(new SurfaceHolder.Callback() {
@@ -133,17 +139,8 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
                 surfaceView2.setOnTouchListener(new View.OnTouchListener() {
                     @Override
                     public boolean onTouch(View v, MotionEvent event) {
-
-//                        return msgCenterMgr.touchevent2(
-//                                event,
-//                                surfaceView2.getWidth(),
-//                                surfaceView2.getHeight(),
-//                                1280,
-//                                1504);
-                        LogUtils.v("217--------width = " + screenWidth + " height :" + screenHeight +
-                                " surfaceView.getWidth() :" +surfaceView.getWidth() + " surfaceView.getHeight():" + surfaceView.getHeight());
-
-                        msgCenterMgr.sendEvent(event,surfaceView.getWidth(), surfaceView.getHeight(), surfaceView.getWidth(), surfaceView.getHeight(),2);
+                        MsgCenterMgr.getInstance().sendEvent(event,surfaceView2.getWidth(), surfaceView2.getHeight(),
+                                surfaceView2.getWidth(), surfaceView2.getHeight(),0);
                         return true;
 
                     }
@@ -159,10 +156,6 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
             @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
             @Override
             public void surfaceDestroyed(SurfaceHolder holder) {
-                if(msgCenterMgr != null){
-                    msgCenterMgr.shutDown();
-                    msgCenterMgr = null;
-                }
             }
         });
 
@@ -170,38 +163,34 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
-
-                msgCenterMgr = new MsgCenterMgr();
-                msgCenterMgr.setVideoSizeChangeListener(MainActivity.this);
-                msgCenterMgr.setConfig(surfaceView.getWidth(),surfaceView.getHeight(),
+                MsgCenterMgr.getInstance().setVideoSizeChangeListener(MainActivity.this);
+                int width1 = dp2px(MainActivity.this,360);
+                int height1 = screenHeight -  dp2px(MainActivity.this,50) * 2;
+                MsgCenterMgr.getInstance().setConfig(width1,height1,
                         surfaceView.getHolder().getSurface(),
+                        2560,1504,
                         surfaceView2.getHolder().getSurface());
-                msgCenterMgr.setConnectListener(new MsgCenterMgr.ConnectListener() {
+                MsgCenterMgr.getInstance().setConnectListener(new MsgCenterMgr.ConnectListener() {
                     @Override
                     public void onStatus(int code, final String msg) {
                         if (code == MsgCenterMgr.CONNECT_SUCCESS) {
 
-//                            LiveEntity liveEntity = new LiveEntity();
-//                            liveEntity.setType(ByteUtil.int2Bytes(100));
-//                            int width = surfaceView.getWidth();
-//                            int height = surfaceView.getHeight();
-//                            String config = width + ":" + height;
-//                            LogUtils.v("传给 客户端  width = " + width + " height :" + height);
-//                            byte[] content = config.getBytes(StandardCharsets.UTF_8);
-//                            liveEntity.setContentLength(ByteUtil.int2Bytes(content.length));
-//                            liveEntity.setContent(content);
-                            //msgCenterMgr.sendMsg(liveEntity);
                         } else if (code == MsgCenterMgr.DISCONNECTED) {
+                            updateLayoutAttribute(1,0,0,1,1);
+                            updateLayoutAttribute(0,0,0,1,1);
                             MainActivity.this.runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
                                     Toast.makeText(MainActivity.this,msg,Toast.LENGTH_SHORT).show();
                                 }
                             });
+
                         }
                     }
                 });
-                msgCenterMgr.start();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    MsgCenterMgr.getInstance().start();
+                }
             }
         },1000);
 
@@ -209,18 +198,45 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
         btn1.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
-                msgCenterMgr.sendKeyCode(4,1);
+                MsgCenterMgr.getInstance().sendKeyCode(4,1);
             }
         });
         btn2 = findViewById(R.id.btn_back2);
         btn2.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
-                msgCenterMgr.sendKeyCode(4,2);
+                MsgCenterMgr.getInstance().sendKeyCode(4,0);
+            }
+        });
+        findViewById(R.id.btn_exit).setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View view) {
+                updateLayoutAttribute(1,0,0,1,1);
+            }
+        });
+        findViewById(R.id.btn_exit2).setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View view) {
+                updateLayoutAttribute(0,0,0,1,1);
             }
         });
 
+        mRightMenuList = findViewById(R.id.right_menu_list);
+        rightMenuAdapter = new AppAdapter(this);
+        mRightMenuList.setLayoutManager(new LinearLayoutManager(this));
+        mRightMenuList.setAdapter(rightMenuAdapter);
+        VerticalSpaceItemDecoration verticalSpaceItemDecoration = new VerticalSpaceItemDecoration();
+        int screenHeight = UIUtils.getScreenHeight(this) - UIUtils.dp2px(this,50) * 2;
+        int itemHeight = UIUtils.dp2px(this,120);
+        verticalSpaceItemDecoration.setScreenWidthHeight(screenHeight,itemHeight);
+        mRightMenuList.addItemDecoration(verticalSpaceItemDecoration);
 
+        mAppPageList = findViewById(R.id.app_remote_page_list);
+        appPageListAdapter = new AppPageAdapter(this);
+        mAppPageList.setLayoutManager(new LinearLayoutManager(this, RecyclerView.HORIZONTAL, false));
+        mAppPageList.setAdapter(appPageListAdapter);
     }
 
     @Override
@@ -231,9 +247,8 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if(msgCenterMgr != null){
-            msgCenterMgr.shutDown();
-            msgCenterMgr = null;
+        if (mReceiver != null) {
+            unregisterReceiver(mReceiver);
         }
     }
 
@@ -245,97 +260,139 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
             super.handleMessage(msg);
             switch (msg.what) {
                 case CONFIG_MEDIACODEC:
-                    if (msgCenterMgr != null) {
-                        int paegCount = msg.arg1;
-                        msgCenterMgr.startDecodec(paegCount);
-                    }
+                    int pageIdx = msg.arg1;
+                    MsgCenterMgr.getInstance().startDecodec(pageIdx);
                     break;
+            }
+        }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    private class MainBroadcast extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (TextUtils.equals(intent.getAction(), Constants.PAGE_IDX_ACTION)) {
+                int pageIdx = intent.getIntExtra(Constants.PAGE_IDX_KEY,-1);
+                if (pageIdx == 0) {
+                    updateLayoutAttribute(0,0,0,RelativeLayout.LayoutParams.MATCH_PARENT,RelativeLayout.LayoutParams.MATCH_PARENT);
+                    updateLayoutAttribute(1,0,0,1,1);
+                } else {
+                    int width = dp2px(MainActivity.this,360);
+                    int height = screenHeight -  dp2px(MainActivity.this,50) * 2;
+                    int leftMargin = dp2px(MainActivity.this,50) +
+                            dp2px(MainActivity.this,90) +
+                            dp2px(MainActivity.this,50) +
+                            dp2px(MainActivity.this,360) * (pageIdx - 1) +
+                            dp2px(MainActivity.this,10) * (pageIdx - 1);
+
+                    int topMargin = dp2px(MainActivity.this,50);
+                    updateLayoutAttribute(1,leftMargin,topMargin,width,height);
+                    updateLayoutAttribute(0,0,0,1,1);
+                }
+                MsgCenterMgr.getInstance().startDecodec(pageIdx);
             }
         }
     }
 
     @Override
     public void onVideoSizeChange(String jsonString) {
-        if (!TextUtils.isEmpty(jsonString)) {
-            JSONObject jsonObject = null;
-            try {
-                jsonObject = new JSONObject(jsonString);
-                int width = jsonObject.optInt("width");
-                int height = jsonObject.optInt("height");
-                final int pageCount = jsonObject.optInt("page_count");
-                boolean isPad = jsonObject.optBoolean("isPad");
+//        if (pageCount == 1) {
+//            updateLayoutAttribute(1,0,0,RelativeLayout.LayoutParams.MATCH_PARENT,RelativeLayout.LayoutParams.MATCH_PARENT);
+//        }
+    }
 
+    @Override
+    public void onParseData(int type,String jsonString) {
+        if (type == LiveEntity.LAUNCHER_DATA) {
+            if (!TextUtils.isEmpty(jsonString)) {
+                final AppItemSdp appItemSdp = new Gson().fromJson(jsonString,AppItemSdp.class);
+                int width = appItemSdp.getWidth();
+                int height = appItemSdp.getHeight();
+                int pageIdx = appItemSdp.getPageCount();
+                boolean isPad = appItemSdp.isIsPad();
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams) surfaceView.getLayoutParams();
-                        layoutParams.width = pageCount != 1 ? dp2px(MainActivity.this,360) : RelativeLayout.LayoutParams.MATCH_PARENT;
-                        layoutParams.height = pageCount != 1 ? dp2px(MainActivity.this,640) : RelativeLayout.LayoutParams.MATCH_PARENT;
-                        surfaceView.setLayoutParams(layoutParams);
-                        btn1.setVisibility(View.VISIBLE);
-                        if (pageCount == 1) {
-                            layout2.setVisibility(View.GONE);
-                        } else {
-                            layout2.setVisibility(View.VISIBLE);
-                            btn2.setVisibility(View.VISIBLE);
-                            surfaceView2.setLayoutParams(layoutParams);
-                        }
-
-                        Message msg = mainHandler.obtainMessage();
-                        msg.what = CONFIG_MEDIACODEC;
-                        msg.arg1 = pageCount;
-                        mainHandler.sendMessage(msg);
-
-
-                        //回传客户端已经调整好了，可以启动编码
-                        LiveEntity liveEntity = new LiveEntity();
-                        liveEntity.setType(ByteUtil.int2Bytes(LiveEntity.STRAT_CODEC));
-                        int width = surfaceView.getWidth();
-                        int height = surfaceView.getHeight();
-                        String config = width + ":" + height;
-                        LogUtils.v("回传客户端已经调整好了，可以启动编码  width = " + width + " height :" + height);
-                        byte[] content = config.getBytes(StandardCharsets.UTF_8);
-                        liveEntity.setContentLength(ByteUtil.int2Bytes(content.length));
-                        liveEntity.setContent(content);
-                        msgCenterMgr.sendMsg(liveEntity);
+                        buildLauncherView(appItemSdp.getMenuData(),appItemSdp.getAppInfo().getPage1(),appItemSdp.getAppInfo().getPage2());
+//                        Message msg = mainHandler.obtainMessage();
+//                        msg.what = CONFIG_MEDIACODEC;
+//                        msg.arg1 = pageCount;
+//                        mainHandler.sendMessage(msg);
+                        Toast.makeText(MainActivity.this,"数据加载成功",Toast.LENGTH_SHORT).show();
                     }
                 });
-            } catch (JSONException e) {
-                e.printStackTrace();
             }
+        } else if (type == LiveEntity.BACK_TO_PAGE_HOME) {
+            updateLayoutAttribute(1,0,0,1,1);
+            updateLayoutAttribute(0,0,0,1,1);
+        }
+    }
+
+    private void updateLayoutAttribute(final int pageIdx, final int leftMargin, final int topMargin , final int width, final int height) {
+
+        mainHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (pageIdx != 0) {
+                    RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams) layout1.getLayoutParams();
+                    layoutParams.width = width;
+                    layoutParams.height = height;
+                    layoutParams.leftMargin = leftMargin;
+                    layoutParams.topMargin = topMargin;
+                    layout1.setLayoutParams(layoutParams);
+                } else {
+                    RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams) layout2.getLayoutParams();
+                    layoutParams.width = width;
+                    layoutParams.height = height;
+                    layoutParams.leftMargin = leftMargin;
+                    layoutParams.topMargin = topMargin;
+                    layout2.setLayoutParams(layoutParams);
+                }
+
+            }
+        },100);
+    }
+
+
+    private void buildLauncherView(List<AppItemInfo> menuDataDTOList, List<AppItemInfo> page1List, List<AppItemInfo> page2List) {
+        if (menuDataDTOList != null && !menuDataDTOList.isEmpty()) {
+            rightMenuAdapter.getDataList().clear();
+            for (AppItemInfo info : menuDataDTOList) {
+                info.setItemType(Constants.RIGHT_MENU_ITEM);
+            }
+            rightMenuAdapter.addData(menuDataDTOList);
+            rightMenuAdapter.notifyDataSetChanged();
         }
 
-    }
-
-    public DisplayMetrics getScreenInfo(Context context) {
-        if (context instanceof Activity) {
-            DisplayMetrics dm = new DisplayMetrics();
-            Activity activity = (Activity)context;
-            activity.getWindowManager().getDefaultDisplay().getRealMetrics(dm);
-            return dm;
+        appPageListAdapter.getDataList().clear();
+        if (page1List != null && !page1List.isEmpty()) {
+            for (AppItemInfo info : page1List) {
+                info.setItemType(Constants.APP_LIST_ITEM);
+            }
+            AppPageItem appPageItem1 = new AppPageItem();
+            appPageItem1.setWholePage(false);
+            appPageItem1.setAppItemInfo(page1List);
+            appPageListAdapter.addData(appPageItem1);
         }
-        return null;
-    }
-    public static int getScreenWidth(Activity context) {
-        WindowManager manager = context.getWindowManager();
-        DisplayMetrics outMetrics = new DisplayMetrics();
-        manager.getDefaultDisplay().getMetrics(outMetrics);
-        return outMetrics.widthPixels;
+        if (page2List != null && !page2List.isEmpty()) {
+            for (AppItemInfo info : page2List) {
+                info.setItemType(Constants.APP_LIST_ITEM);
+            }
+            AppPageItem appPageItem2 = new AppPageItem();
+            appPageItem2.setWholePage(false);
+            appPageItem2.setAppItemInfo(page2List);
+            appPageListAdapter.addData(appPageItem2);
+
+        }
+        appPageListAdapter.notifyDataSetChanged();
+
+
     }
 
-    public static int getScreenHeight(Activity context) {
-        WindowManager manager = context.getWindowManager();
-        DisplayMetrics outMetrics = new DisplayMetrics();
-        manager.getDefaultDisplay().getMetrics(outMetrics);
-        return outMetrics.heightPixels;
-    }
+
     public static int dp2px(Context context, float dpValue) {
         final float scale = context.getResources().getDisplayMetrics().density;
         return (int) (dpValue * scale + 0.5f);
     }
 
-    public static int px2dp(Context context, float pxValue) {
-        final float scale = context.getResources().getDisplayMetrics().density;
-        return (int) (pxValue / scale + 0.5f);
-    }
 }

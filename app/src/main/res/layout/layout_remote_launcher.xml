@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    tools:context=".MainActivity">
+    <Button
+        android:text="test"
+        android:visibility="gone"
+        android:id="@+id/btn_test"
+        android:layout_width="100dp"
+        android:layout_height="wrap_content" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/right_menu_list"
+        android:visibility="gone"
+        android:background="@drawable/app_layout_conner"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_marginRight="50dp"
+        android:layout_marginLeft="50dp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/app_remote_page_list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+
+</LinearLayout>

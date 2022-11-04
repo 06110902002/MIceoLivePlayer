@@ -1,16 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal">
 
-    <RelativeLayout
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_weight="1"
         android:orientation="horizontal">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/right_menu_list"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_margin="50dp"
+            android:background="@drawable/app_layout_conner" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/app_remote_page_list"
+            android:layout_marginTop="50dp"
+            android:layout_marginBottom="50dp"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+
+    </LinearLayout>
+
+    <RelativeLayout
+        android:id="@+id/layout1"
+        android:layout_width="1dp"
+        android:layout_height="1dp"
+        android:layout_alignParentStart="true">
 
         <SurfaceView
             android:id="@+id/surfaceView1"
@@ -20,24 +43,27 @@
 
         <Button
             android:id="@+id/btn_back1"
-            android:visibility="gone"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentBottom="true"
             android:text="back" />
 
+        <Button
+            android:id="@+id/btn_exit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentBottom="true"
+            android:text="exit" />
+
 
     </RelativeLayout>
-    <View
-        android:background="#333222"
-        android:layout_width="1dp"
-        android:layout_height="match_parent"/>
+
 
     <RelativeLayout
         android:id="@+id/layout2"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
+        android:layout_width="1dp"
+        android:layout_height="1dp"
         android:orientation="horizontal">
 
         <SurfaceView
@@ -48,20 +74,20 @@
 
         <Button
             android:id="@+id/btn_back2"
-            android:visibility="gone"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentBottom="true"
             android:text="back" />
 
+        <Button
+            android:id="@+id/btn_exit2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentBottom="true"
+            android:text="exit" />
+
+
     </RelativeLayout>
 
-
-    <Button
-        android:id="@+id/btn_switch"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="切换"
-        android:visibility="gone" />
-
-</LinearLayout>
+</RelativeLayout>

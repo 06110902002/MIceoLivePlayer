@@ -1,5 +1,18 @@
 package come.live.decodelib;
 
+import android.os.Build;
+import android.os.Handler;
+import android.os.Message;
+import android.text.TextUtils;
+import android.view.MotionEvent;
+import android.view.Surface;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -9,31 +22,10 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import android.app.Activity;
-import android.os.Build;
-import android.os.Handler;
-import android.os.Message;
-import android.text.TextUtils;
-import android.util.DisplayMetrics;
-import android.util.Log;
-import android.view.MotionEvent;
-import android.view.Surface;
-import android.view.SurfaceControl;
-import android.view.WindowManager;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
-
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import come.live.decodelib.model.LiveEntity;
-import come.live.decodelib.model.LiveHead;
 import come.live.decodelib.utils.ByteUtil;
-import come.live.decodelib.utils.H264SPSParse;
 import come.live.decodelib.utils.LogUtils;
 import come.live.decodelib.utils.ReadMsgUtils;
-import come.live.decodelib.video.MirrorContext;
 import come.live.decodelib.video.VideoPlay;
 
 /**
@@ -64,9 +56,10 @@ public class MsgCenterMgr {
     private DecodeStreamMediaThread decodeStreamMediaThread;
     private int width;
     private int height;
+    private int width2;
+    private int height2;
     private Surface surface;
-    private VideoSizeChangeListener videoSizeChangeListener;
-    private MirrorContext mirrorContext;
+    private DataParseListener videoSizeChangeListener;
     private byte[] sps;
     private byte[] pps;
     private VideoPlay videoPlay;
@@ -74,13 +67,23 @@ public class MsgCenterMgr {
     private Surface surface2;
     private LinkedBlockingQueue<LiveEntity> waitSendQueue = new LinkedBlockingQueue<>();
     private SendThread sendThread;
-    private int pageCount = 0;
+    private int pageIdx = 0;
+    private static MsgCenterMgr msgCenterMgr;
 
-    public MsgCenterMgr(){
+    public static MsgCenterMgr getInstance(){
+        if(msgCenterMgr == null){
+            synchronized (MsgCenterMgr.class){
+                msgCenterMgr = new MsgCenterMgr();
+            }
+        }
+        return msgCenterMgr;
+    }
+
+    private MsgCenterMgr(){
         mHandler = new ReconnectHandler();
     }
 
-    public void setVideoSizeChangeListener(VideoSizeChangeListener listener){
+    public void setVideoSizeChangeListener(DataParseListener listener){
         this.videoSizeChangeListener = listener;
     }
     private ConnectListener connectListener;
@@ -101,29 +104,33 @@ public class MsgCenterMgr {
         readMsgThread.start();
 
         streamQueue = new LinkedBlockingQueue<>();
-
-        //decodeStreamMediaThread = new DecodeStreamMediaThread();
-        //decodeStreamMediaThread.setStreamMediaQueue(streamQueue);
-        //decodeStreamMediaThread.initVideoMediaCodec(width,height,surface);
-        //decodeStreamMediaThread.start();
-
-//        videoPlay = new VideoPlay();
-//        videoPlay.initMediaCodec(width,height,surface);
-//        if (pageCount > 1) {
-//            videoPlay2 = new VideoPlay();
-//            videoPlay2.initMediaCodec(width,height,surface2);
-//        }
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
-    public void startDecodec(int pageCount) {
-        videoPlay = new VideoPlay();
-        videoPlay.initMediaCodec(width,height,surface);
-        if (pageCount > 1) {
-            videoPlay2 = new VideoPlay();
-            videoPlay2.initMediaCodec(width,height,surface2);
+    public void startDecodec(int pageIdx) {
+        this.pageIdx = pageIdx;
+        if (pageIdx == 0) {
+            if (videoPlay2 == null) {
+                videoPlay2 = new VideoPlay();
+                videoPlay2.initMediaCodec(width2,height2,surface2);
+            }
+        } else {
+            if (videoPlay == null) {
+                videoPlay = new VideoPlay();
+                videoPlay.initMediaCodec(width,height,surface);
+            }
         }
     }
+
+    public void stopLastEncoder(int encodecIdx) {
+        LiveEntity liveEntity = new LiveEntity();
+        liveEntity.setType(ByteUtil.int2Bytes(LiveEntity.STOP_CODEC));
+        byte[] content = ByteUtil.int2Bytes(encodecIdx);
+        liveEntity.setContentLength(ByteUtil.int2Bytes(content.length));
+        liveEntity.setContent(content);
+        sendMsg(liveEntity);
+    }
+
 
     /**
      * 初始化 serverSocket
@@ -167,23 +174,13 @@ public class MsgCenterMgr {
      * @param height   解码器输入画面高度
      * @param surface  解码h264之后渲染画面
      */
-    public void setConfig(int width,int height, Surface surface,Surface surface2){
-        //测试单独解码视频
-        //oriH264Queue = new LinkedBlockingQueue<>();
-        //decodeH264Thread = new DecodeH264Thread(oriH264Queue,width,height,surface);
-        //decodeH264Thread.start();
-
-        //测试单独解码音频
-        //new TestAudioThread(oriH264Queue).start();
-
+    public void setConfig(int width,int height, Surface surface,int width2,int height2,Surface surface2){
         this.width = width;
         this.height = height;
+        this.width2 = width2;
+        this.height2 = height2;
         this.surface = surface;
         this.surface2 = surface2;
-
-        //mirrorContext = new MirrorContext(null,mHandler,false);
-        //mirrorContext.setSurface(surface);
-
     }
 
     /**
@@ -192,59 +189,40 @@ public class MsgCenterMgr {
     public void readMessage(){
         while(isRunning){
             try {
-                byte[] header = ReadMsgUtils.readBytesByLength(inputStream, 12);
+                byte[] header = ReadMsgUtils.readBytesByLength(inputStream, 8);
                 if (header == null || header.length == 0) {
                     Thread.sleep(10);
                     continue;
                 }
-                //LiveHead liveHead = ReadMsgUtils.analysisHeader(header);
-                //Log.v("msgCenterMgr","正在读取消息,协议类型："+liveHead.getType());
-                //if(liveHead.getBuffSize() <= 0){
-                //    Thread.sleep(10);
-                //    continue;
-                //}
-                //byte[] receiveData = ReadMsgUtils.analysisDataWithHead(inputStream, liveHead);
-                //if(receiveData == null || receiveData.length <= 0){
-                //    Thread.sleep(10);
-                //    continue;
-                //}
-                //oriH264Queue.put(receiveData);
-
-
                 byte[] typeBuff = new byte[4];
-                //协议类型
                 System.arraycopy(header, 0, typeBuff, 0, 3);
                 int type = ByteUtil.bytesToInt(typeBuff);
 
-                //显示在哪个SurfaceView
-                byte[] surfaceViewIdxBytes = new byte[4];
-                System.arraycopy(header,4,surfaceViewIdxBytes,0,3);
-                int surfaceViewIdx = ByteUtil.bytesToInt(surfaceViewIdxBytes);
-
                 byte[] lengthByte = new byte[4];
-                //报文长度
-                System.arraycopy(header,8,lengthByte,0,3);
+                System.arraycopy(header,4,lengthByte,0,3);
                 int len = ByteUtil.bytesToInt(lengthByte);
 
                 byte[] content = ReadMsgUtils.readBytesByLength(inputStream, len);
 
-                if(type == LiveEntity.RESOLUTION){
+                if(type == LiveEntity.LAUNCHER_DATA){
                     String tmp = ByteUtil.bytes2String(content);
-                    LogUtils.v("分辨率："+tmp);
                     if (videoSizeChangeListener != null && !TextUtils.isEmpty(tmp)){
-                        videoSizeChangeListener.onVideoSizeChange(tmp);
+                        videoSizeChangeListener.onParseData(type,tmp);
+                    }
+                } else if (type == LiveEntity.BACK_TO_PAGE_HOME) {
+                    if (videoSizeChangeListener != null ){
+                        videoSizeChangeListener.onParseData(type,null);
                     }
                 }
                 else {
-                    if (surfaceViewIdx == 1) {
-                        if (videoPlay != null) {
-                            videoPlay.addH264Packer(content);
-                        }
-
-                    } else {
-                        if (videoPlay2 != null) {
-                            videoPlay2.addH264Packer(content);
-                        }
+                    if (type == LiveEntity.SPS && videoSizeChangeListener != null) {
+                        videoSizeChangeListener.onVideoSizeChange(null);
+                    }
+                    if (videoPlay != null && pageIdx != 0) {
+                        videoPlay.addH264Packer(content);
+                    }
+                    if (videoPlay2 != null && pageIdx == 0) {
+                        videoPlay2.addH264Packer(content);
                     }
                 }
 
@@ -526,6 +504,9 @@ public class MsgCenterMgr {
                 e.printStackTrace();
             }
         }
+        if (!isConnected() && connectListener != null) {
+            connectListener.onStatus(DISCONNECTED,"连接断开");
+        }
     }
 
 
@@ -544,15 +525,7 @@ public class MsgCenterMgr {
             while (waitSendQueue != null && !waitSendQueue.isEmpty()) {
                 LiveEntity liveEntity = waitSendQueue.poll();
                 LogUtils.v("52------开始发送消息.....surfaceIdx " + ByteUtil.bytesToInt(liveEntity.getType()));
-                if (liveEntity == null) {
-                    continue;
-                }
                 sendLiveDate(liveEntity.getType(), liveEntity.getContentLength(), liveEntity.getContent());
-            }
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
             }
         }
     }

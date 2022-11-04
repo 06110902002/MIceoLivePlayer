@@ -8,7 +8,7 @@ import android.os.Message;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
-import come.live.decodelib.VideoSizeChangeListener;
+import come.live.decodelib.DataParseListener;
 import come.live.decodelib.utils.LogUtils;
 
 import java.io.IOException;
@@ -44,7 +44,7 @@ public class MirrorContext {
 
     private boolean mFirstFrame = true;
     private static boolean renderThreadRunning = false;
-    private VideoSizeChangeListener mListener;
+    private DataParseListener mListener;
 
     private static int  CONFIGURE_FLAG_LOWLAT  = 0x2;//OMX low lantency flag
 
@@ -63,7 +63,7 @@ public class MirrorContext {
     private boolean isHisiPlatform = false;
     private static boolean mDebug = false;
 
-    public MirrorContext(VideoSizeChangeListener listener, Handler handler,boolean debug) {
+    public MirrorContext(DataParseListener listener, Handler handler, boolean debug) {
         mStat = MIRROR_IDLE;
         mCodec = null;
         mDisplay = null;
