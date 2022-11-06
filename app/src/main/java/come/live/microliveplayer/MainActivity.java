@@ -108,7 +108,14 @@ public class MainActivity extends BaseActivity implements DataParseListener {
                 surfaceView.setOnTouchListener(new View.OnTouchListener() {
                     @Override
                     public boolean onTouch(View v, MotionEvent event) {
-                        MsgCenterMgr.getInstance().sendEvent(event,surfaceView.getWidth(), surfaceView.getHeight(), surfaceView.getWidth(), surfaceView.getHeight(),1);
+                        //MsgCenterMgr.getInstance().sendEvent(event,surfaceView.getWidth(), surfaceView.getHeight(), surfaceView.getWidth(), surfaceView.getHeight(),1);
+                        MsgCenterMgr.getInstance().touchevent(event,
+                                surfaceView.getWidth(),
+                                surfaceView.getHeight(),
+                                surfaceView.getWidth(),
+                                surfaceView.getHeight(),
+                                1);
+
                         return true;
 
                     }
@@ -139,8 +146,14 @@ public class MainActivity extends BaseActivity implements DataParseListener {
                 surfaceView2.setOnTouchListener(new View.OnTouchListener() {
                     @Override
                     public boolean onTouch(View v, MotionEvent event) {
-                        MsgCenterMgr.getInstance().sendEvent(event,surfaceView2.getWidth(), surfaceView2.getHeight(),
-                                surfaceView2.getWidth(), surfaceView2.getHeight(),0);
+//                        MsgCenterMgr.getInstance().sendEvent(event,surfaceView2.getWidth(), surfaceView2.getHeight(),
+//                                surfaceView2.getWidth(), surfaceView2.getHeight(),0);
+                        MsgCenterMgr.getInstance().touchevent(event,
+                                surfaceView2.getWidth(),
+                                surfaceView2.getHeight(),
+                                surfaceView2.getWidth(),
+                                surfaceView2.getHeight(),
+                                0);
                         return true;
 
                     }

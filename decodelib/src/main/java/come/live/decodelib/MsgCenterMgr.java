@@ -219,10 +219,10 @@ public class MsgCenterMgr {
                         videoSizeChangeListener.onVideoSizeChange(null);
                     }
                     if (videoPlay != null && pageIdx != 0) {
-                        videoPlay.addH264Packer(content);
+                        videoPlay.putH264InputBuffer(content);
                     }
                     if (videoPlay2 != null && pageIdx == 0) {
-                        videoPlay2.addH264Packer(content);
+                        videoPlay2.putH264InputBuffer(content);
                     }
                 }
 
@@ -355,24 +355,53 @@ public class MsgCenterMgr {
 
     public boolean touchevent(MotionEvent touch_event,
                               int displayW, int displayH,
-                              int screenWidth, int screenHeight) {
+                              int screenWidth, int screenHeight,
+                              int surfaceViewIdx) {
 
-        if (touch_event.getAction() == MotionEvent.ACTION_DOWN) {
-            String point = (int) touch_event.getX() * screenWidth / displayW + ":" + (int) touch_event.getY() * screenHeight / displayH;
-            LogUtils.v("point = " + point);
-            byte[] pointByte = point.getBytes(StandardCharsets.UTF_8);
-            byte[] type = ByteUtil.int2Bytes(1);
-            byte[] length = ByteUtil.int2Bytes(pointByte.length);
-            LiveEntity liveEntity = new LiveEntity();
-            liveEntity.setType(type);
-            liveEntity.setContentLength(length);
-            liveEntity.setContent(pointByte);
-            try {
-                waitSendQueue.put(liveEntity);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+//        if (touch_event.getAction() == MotionEvent.ACTION_DOWN) {
+//            String point = (int) touch_event.getX() * screenWidth / displayW + ":" + (int) touch_event.getY() * screenHeight / displayH;
+//            LogUtils.v("point = " + point);
+//            byte[] pointByte = point.getBytes(StandardCharsets.UTF_8);
+//            byte[] type = ByteUtil.int2Bytes(1);
+//            byte[] length = ByteUtil.int2Bytes(pointByte.length);
+//            LiveEntity liveEntity = new LiveEntity();
+//            liveEntity.setType(type);
+//            liveEntity.setContentLength(length);
+//            liveEntity.setContent(pointByte);
+//            try {
+//                waitSendQueue.put(liveEntity);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//        }
+
+        int[] buf = new int[] {
+                touch_event.getAction(), touch_event.getButtonState(),
+                (int) touch_event.getX() * screenWidth / displayW,
+                (int) touch_event.getY() * screenHeight / displayH
+        };
+        final byte[] array = new byte[buf.length * 4];
+        for (int j = 0; j < buf.length; j++) {
+            int c = buf[j];
+            array[j * 4] = (byte) ((c & 0xFF000000) >> 24);
+            array[j * 4 + 1] = (byte) ((c & 0xFF0000) >> 16);
+            array[j * 4 + 2] = (byte) ((c & 0xFF00) >> 8);
+            array[j * 4 + 3] = (byte) (c & 0xFF);
         }
+
+        byte[] type = ByteUtil.int2Bytes(surfaceViewIdx);
+        byte[] length = ByteUtil.int2Bytes(array.length);
+        LiveEntity liveEntity = new LiveEntity();
+        liveEntity.setType(type);
+        liveEntity.setContentLength(length);
+        liveEntity.setContent(array);
+        //sendLiveDate(type,length,array);
+        try {
+            waitSendQueue.put(liveEntity);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         return true;
     }
 
@@ -483,13 +512,37 @@ public class MsgCenterMgr {
     }
 
     public void sendKeyCode(int keyCode,int surfaceViewIdx) {
-        byte[] keyCodeByte = (keyCode+"").getBytes(StandardCharsets.UTF_8);
+//        byte[] keyCodeByte = (keyCode+"").getBytes(StandardCharsets.UTF_8);
+//        byte[] type = ByteUtil.int2Bytes(surfaceViewIdx);
+//        byte[] length = ByteUtil.int2Bytes(keyCodeByte.length);
+//        LiveEntity liveEntity = new LiveEntity();
+//        liveEntity.setType(type);
+//        liveEntity.setContentLength(length);
+//        liveEntity.setContent(keyCodeByte);
+//        try {
+//            waitSendQueue.put(liveEntity);
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+
+
+//        int[] buf = new int[]{keyCode};
+//
+//        final byte[] array = new byte[buf.length * 4];   // https://stackoverflow.com/questions/2183240/java-integer-to-byte-array
+//        for (int j = 0; j < buf.length; j++) {
+//            final int c = buf[j];
+//            array[j * 4] = (byte) ((c & 0xFF000000) >> 24);
+//            array[j * 4 + 1] = (byte) ((c & 0xFF0000) >> 16);
+//            array[j * 4 + 2] = (byte) ((c & 0xFF00) >> 8);
+//            array[j * 4 + 3] = (byte) (c & 0xFF);
+//        }
+        final byte[] array = ByteUtil.int2Bytes(keyCode);
         byte[] type = ByteUtil.int2Bytes(surfaceViewIdx);
-        byte[] length = ByteUtil.int2Bytes(keyCodeByte.length);
+        byte[] length = ByteUtil.int2Bytes(array.length);
         LiveEntity liveEntity = new LiveEntity();
         liveEntity.setType(type);
         liveEntity.setContentLength(length);
-        liveEntity.setContent(keyCodeByte);
+        liveEntity.setContent(array);
         try {
             waitSendQueue.put(liveEntity);
         } catch (InterruptedException e) {
