@@ -31,7 +31,7 @@ public class VideoPlay {
     private ByteBuffer[] mOutputBuffers;
     private String mediaCodecStatus;
     private PlayerThread playerThread;
-    private BlockingQueue<byte[]> packets = new LinkedBlockingQueue<>(10);
+    private BlockingQueue<byte[]> packets = new LinkedBlockingQueue<>(1);
     private final HandlerThread mDecodeThread = new HandlerThread("VideoDecoder");
 
     /**
@@ -58,15 +58,16 @@ public class VideoPlay {
             mediaCodec = MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_VIDEO_AVC);
             mediaCodec.configure(format, surface, null, 0);
             //使用同步的方式解码渲染
-            mDecodeThread.start();
-            mediaCodec.setCallback(mDecoderCallback, new Handler(mDecodeThread.getLooper()));
+//            mDecodeThread.start();
+           // mediaCodec.setCallback(mDecoderCallback, new Handler(mDecodeThread.getLooper()));
+
             mediaCodec.start();
             //使用  putH264InputBuffer  接口需要将这里打开
-            //isStart = true;
-//            mInputBuffers = mediaCodec.getInputBuffers();
-//            mOutputBuffers = mediaCodec.getOutputBuffers();
-//            playerThread = new PlayerThread();
-//            playerThread.start();
+            isStart = true;
+            mInputBuffers = mediaCodec.getInputBuffers();
+            mOutputBuffers = mediaCodec.getOutputBuffers();
+            playerThread = new PlayerThread();
+            playerThread.start();
         } catch (IOException e) {
             e.printStackTrace();
             isStart = false;
@@ -163,22 +164,19 @@ public class VideoPlay {
         if (mediaCodec == null) {
             return;
         }
-        for (; ; ) {
-            int idx = mediaCodec.dequeueInputBuffer(10000);//10ms
-            if (idx >= 0) {
-                ByteBuffer input = mInputBuffers[idx];
-                int length = h264Buffer.length;
-                input.clear();
-                input.put(h264Buffer);
-                mediaCodec.queueInputBuffer(idx, 0, length, 0, 0);
-                break;
+        int index = mediaCodec.dequeueInputBuffer(-1);
+        if (index >= 0) {
+            ByteBuffer buffer;
+
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+                buffer = mediaCodec.getInputBuffers()[index];
+                buffer.clear();
             } else {
-                try {
-                    Thread.sleep(1);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                LogUtils.v("queueInputBuffer failed: idx=" + idx);
+                buffer = mediaCodec.getInputBuffer(index);
+            }
+            if (buffer != null) {
+                buffer.put(h264Buffer, 0, h264Buffer.length);
+                mediaCodec.queueInputBuffer(index, 0, h264Buffer.length, 0, 0);
             }
         }
 
@@ -190,23 +188,38 @@ public class VideoPlay {
      * @param bufferInfo MediaCodec中输入队列数据
      */
     public void onFrame(MediaCodec.BufferInfo bufferInfo){
-        int idx = mediaCodec.dequeueOutputBuffer(bufferInfo, 50000);
-        switch (idx) {
-            case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
-                LogUtils.v( "INFO_OUTPUT_BUFFERS_CHANGED");
-                mOutputBuffers = mediaCodec.getOutputBuffers();
-                break;
-            case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
-                LogUtils.v( "New format " + mediaCodec.getOutputFormat());
-                break;
-            case MediaCodec.INFO_TRY_AGAIN_LATER:
-                //LogUtils.v( "dequeueOutputBuffer timed out!");
-                Thread.yield();
-                break;
-            default:
-                ByteBuffer buffer = mOutputBuffers[idx];
-                mediaCodec.releaseOutputBuffer(idx, true);
-                break;
+//        int idx = mediaCodec.dequeueOutputBuffer(bufferInfo, 0);
+//        switch (idx) {
+//            case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
+//                LogUtils.v( "INFO_OUTPUT_BUFFERS_CHANGED");
+//                mOutputBuffers = mediaCodec.getOutputBuffers();
+//                break;
+//            case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
+//                LogUtils.v( "New format " + mediaCodec.getOutputFormat());
+//                break;
+//            case MediaCodec.INFO_TRY_AGAIN_LATER:
+//                //LogUtils.v( "dequeueOutputBuffer timed out!");
+//                Thread.yield();
+//                break;
+//            default:
+//                //ByteBuffer buffer = mOutputBuffers[idx];
+//                mediaCodec.releaseOutputBuffer(idx, true);
+//                break;
+//        }
+
+        try {
+            MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+            while (isStart) {
+                int index = mediaCodec.dequeueOutputBuffer(info, 0);
+                if (index >= 0) {
+                    // setting true is telling system to render frame onto Surface
+                    mediaCodec.releaseOutputBuffer(index, true);
+                    if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) == MediaCodec.BUFFER_FLAG_END_OF_STREAM) {
+                        break;
+                    }
+                }
+            }
+        } catch (IllegalStateException e) {
         }
     }
 

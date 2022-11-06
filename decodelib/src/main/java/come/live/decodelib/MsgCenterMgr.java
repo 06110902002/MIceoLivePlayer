@@ -150,37 +150,22 @@ public class MsgCenterMgr {
     public void readMessage(){
         while(isRunning){
             try {
-                byte[] header = ReadMsgUtils.readBytesByLength(inputStream, 8);
+                byte[] header = ReadMsgUtils.readBytesByLength(inputStream, 5);
                 if (header == null || header.length == 0) {
                     Thread.sleep(10);
                     continue;
                 }
-                //LiveHead liveHead = ReadMsgUtils.analysisHeader(header);
-                //Log.v("msgCenterMgr","正在读取消息,协议类型："+liveHead.getType());
-                //if(liveHead.getBuffSize() <= 0){
-                //    Thread.sleep(10);
-                //    continue;
-                //}
-                //byte[] receiveData = ReadMsgUtils.analysisDataWithHead(inputStream, liveHead);
-                //if(receiveData == null || receiveData.length <= 0){
-                //    Thread.sleep(10);
-                //    continue;
-                //}
-                //oriH264Queue.put(receiveData);
 
 
-                byte[] typeBuff = new byte[4];
-                //协议类型
-                System.arraycopy(header, 0, typeBuff, 0, 3);
-                int type = ByteUtil.bytesToInt(typeBuff);
+                byte typeBuff = header[0];
+                int type = ByteUtil.byte2Int(typeBuff);
 
                 byte[] lengthByte = new byte[4];
                 //报文长度
-                System.arraycopy(header,4,lengthByte,0,3);
+                System.arraycopy(header,1,lengthByte,0,4);
                 int len = ByteUtil.bytesToInt(lengthByte);
 
                 byte[] content = ReadMsgUtils.readBytesByLength(inputStream, len);
-
                 if(type == LiveEntity.RESOLUTION){
 
                     String tmp = ByteUtil.bytes2String(content);
@@ -208,9 +193,9 @@ public class MsgCenterMgr {
                     //streamQueue.put(liveEntity);
                    // mirrorContext.writeData(ByteUtil.byte2ByteBuffer(content),System.currentTimeMillis());
                     //方法二
-                    //videoPlay.putH264InputBuffer(content);
+                    videoPlay.putH264InputBuffer(content);
                     //方法三 使用同步方式解码渲染 264
-                    videoPlay.addH264Packer(content);
+                    //videoPlay.addH264Packer(content);
 
                 }
 

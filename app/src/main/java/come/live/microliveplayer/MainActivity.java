@@ -32,7 +32,7 @@ public class MainActivity extends BaseActivity implements VideoSizeChangeListene
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         initView();
-        DevicesBroadcast.getInstance().start();
+        //DevicesBroadcast.getInstance().start();
     }
 
     @Override

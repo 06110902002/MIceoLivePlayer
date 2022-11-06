@@ -24,6 +24,19 @@ public class ByteUtil {
         result[3] = (byte) (length >> 24);
         return result;
     }
+    public static byte[] int2Bytes2(int length) {
+        byte[] result = new byte[2];
+        result[0] = (byte) length;
+        result[1] = (byte) (length >> 8);
+        return result;
+    }
+    public static byte int2Byte(int length) {
+        return (byte)length;
+    }
+
+    public static int byte2Int(byte b) {
+        return b & 0xFF;
+    }
 
     //转成2个字节
     public static byte[] short2Bytes(short size) {
