@@ -18,6 +18,8 @@ import android.view.SurfaceControl;
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 
+import come.live.decodelib.audio.AudioPlay;
+import come.live.decodelib.audio.AudioPlayer;
 import come.live.decodelib.model.LiveEntity;
 import come.live.decodelib.model.LiveHead;
 import come.live.decodelib.utils.ByteUtil;
@@ -25,6 +27,7 @@ import come.live.decodelib.utils.H264SPSParse;
 import come.live.decodelib.utils.LogUtils;
 import come.live.decodelib.utils.ReadMsgUtils;
 import come.live.decodelib.video.MirrorContext;
+import come.live.decodelib.video.VideoDecoder;
 import come.live.decodelib.video.VideoPlay;
 
 /**
@@ -59,6 +62,8 @@ public class MsgCenterMgr {
     private byte[] sps;
     private byte[] pps;
     private VideoPlay videoPlay;
+    private AudioPlay audioPlay;
+    private VideoDecoder videoDecoder;
 
     public MsgCenterMgr(){
         mHandler = new ReconnectHandler();
@@ -87,8 +92,16 @@ public class MsgCenterMgr {
         //decodeStreamMediaThread.initVideoMediaCodec(width,height,surface);
         //decodeStreamMediaThread.start();
 
-        videoPlay = new VideoPlay();
-        videoPlay.initMediaCodec(width,height,surface);
+//        videoPlay = new VideoPlay();  方法二  需要将这里打开
+//        videoPlay.initMediaCodec(width,height,surface);
+        //音频解码
+        audioPlay = new AudioPlay();
+
+        //方法四
+        videoDecoder = new VideoDecoder();
+        videoDecoder.start();
+        videoDecoder.configure(surface,width,height,null,null);
+
     }
 
     /**
@@ -175,27 +188,23 @@ public class MsgCenterMgr {
                         videoSizeChangeListener.onVideoSizeChange(Integer.parseInt(resolutions[0]),Integer.parseInt(resolutions[1]));
                     }
 
-                } else if(type == 29){
-                    //sendLiveDate(typeBuff,lengthByte,content);
-                } /*else if(type == LiveEntity.SPS) {
-                    sps = content;
-                    mirrorContext.setupCodec(this.width,this.height,content,System.currentTimeMillis());
-
-                }else if (type == LiveEntity.PPS) {
-                    pps = content;
-                    byte[] newBuf = new byte[sps.length + pps.length];
-                    System.arraycopy(sps, 0, newBuf, 0, sps.length);
-                    System.arraycopy(pps, 0, newBuf, sps.length, pps.length);
-                    mirrorContext.setupCodec(this.width,this.height,newBuf,System.currentTimeMillis());
-                }*/
+                } else if(type == LiveEntity.AUDIO) {
+                    if (audioPlay != null) {
+                        audioPlay.playAudio(content,0,len);
+                    }
+                }
                 else {
                     //LiveEntity liveEntity = new LiveEntity(type,content);
                     //streamQueue.put(liveEntity);
                    // mirrorContext.writeData(ByteUtil.byte2ByteBuffer(content),System.currentTimeMillis());
                     //方法二
-                    videoPlay.putH264InputBuffer(content);
+                    //videoPlay.putH264InputBuffer(content);
                     //方法三 使用同步方式解码渲染 264
                     //videoPlay.addH264Packer(content);
+                    //方法四
+                    if (videoDecoder != null) {
+                        videoDecoder.decodeSample(content,0,len,0,0);
+                    }
 
                 }
 

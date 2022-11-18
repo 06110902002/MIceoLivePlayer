@@ -36,8 +36,8 @@ public class AudioPlay {
 
         audioQueue = new LinkedBlockingQueue<>();
         isStartPlay = true;
-        playThread = new PlayThread();
-        playThread.start();
+//        playThread = new PlayThread();
+//        playThread.start();
         codecInputBuffers = mAudioMediaCodec.getInputBuffers();
         codecOutputBuffers = mAudioMediaCodec.getOutputBuffers();
     }
@@ -97,8 +97,8 @@ public class AudioPlay {
                 //清空缓存
                 outputBuffer.clear();
                 //播放解码后的数据
-                //mAudioTrack.write(outData, 0, info.size);
-                audioQueue.put(outData);
+                mAudioTrack.write(outData, 0, info.size);
+                //audioQueue.put(outData);
 
 
 //                Log.e("DecodeThread", "buff length = " + info.size);
