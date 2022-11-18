@@ -83,6 +83,8 @@ public class AppItemSdp implements Serializable {
         @SerializedName("page2")
         private List<AppItemInfo> page2;
 
+        private List<AppItemInfo> page3;
+
         public List<AppItemInfo> getPage1() {
             return page1;
         }
@@ -98,6 +100,15 @@ public class AppItemSdp implements Serializable {
         public void setPage2(List<AppItemInfo> page2) {
             this.page2 = page2;
         }
+
+        public List<AppItemInfo> getPage3() {
+            return page3;
+        }
+
+        public void setPage3(List<AppItemInfo> page3) {
+            this.page3 = page3;
+        }
+
 
 //        public static class Page1DTO {
 //            @SerializedName("pageIdx")

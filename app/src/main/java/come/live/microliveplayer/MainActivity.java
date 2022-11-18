@@ -326,7 +326,7 @@ public class MainActivity extends BaseActivity implements DataParseListener {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        buildLauncherView(appItemSdp.getMenuData(),appItemSdp.getAppInfo().getPage1(),appItemSdp.getAppInfo().getPage2());
+                        buildLauncherView(appItemSdp.getMenuData(),appItemSdp.getAppInfo().getPage1(),appItemSdp.getAppInfo().getPage2(),appItemSdp.getAppInfo().getPage3());
 //                        Message msg = mainHandler.obtainMessage();
 //                        msg.what = CONFIG_MEDIACODEC;
 //                        msg.arg1 = pageCount;
@@ -367,7 +367,7 @@ public class MainActivity extends BaseActivity implements DataParseListener {
     }
 
 
-    private void buildLauncherView(List<AppItemInfo> menuDataDTOList, List<AppItemInfo> page1List, List<AppItemInfo> page2List) {
+    private void buildLauncherView(List<AppItemInfo> menuDataDTOList, List<AppItemInfo> page1List, List<AppItemInfo> page2List,List<AppItemInfo> page3List) {
         if (menuDataDTOList != null && !menuDataDTOList.isEmpty()) {
             rightMenuAdapter.getDataList().clear();
             for (AppItemInfo info : menuDataDTOList) {
@@ -395,6 +395,16 @@ public class MainActivity extends BaseActivity implements DataParseListener {
             appPageItem2.setWholePage(false);
             appPageItem2.setAppItemInfo(page2List);
             appPageListAdapter.addData(appPageItem2);
+
+        }
+        if (page3List != null && !page3List.isEmpty()) {
+            for (AppItemInfo info : page3List) {
+                info.setItemType(Constants.APP_LIST_ITEM);
+            }
+            AppPageItem appPageItem3 = new AppPageItem();
+            appPageItem3.setWholePage(false);
+            appPageItem3.setAppItemInfo(page3List);
+            appPageListAdapter.addData(appPageItem3);
 
         }
         appPageListAdapter.notifyDataSetChanged();
